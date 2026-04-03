@@ -1,0 +1,146 @@
+# Bijoux Quota-Aware LLM Gateway — Example Provider Configuration
+# ==============================================================
+#
+# Secrets: Use ${ENV_VAR} syntax for environment variable interpolation.
+# All secrets are resolved at load time from the process environment.
+
+# Global routing settings
+selection_strategy:
+  strategy_type: priority_quota    # priority_quota | weighted | cheapest | round_robin
+  fairness_cursor: true            # rotate among same-priority providers
+
+default_timeout_seconds: 60
+max_failover_attempts: 5
+storage_path: bijoux_state.db
+log_level: INFO
+redact_secrets: true
+
+providers:
+  # ── OpenRouter Account 1 ──────────────────────────────────────
+  - name: openrouter-primary
+    enabled: true
+    provider_type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "${OPENROUTER_API_KEY}"
+    default_model: openai/gpt-4o-mini
+    model_map:
+      gpt-4o-mini: openai/gpt-4o-mini
+      gpt-4o: openai/gpt-4o
+      claude-sonnet: anthropic/claude-3.5-sonnet
+    priority: 1
+    timeout_seconds: 90
+    retry_policy:
+      max_retries: 2
+      backoff_base: 1.0
+      backoff_max: 10.0
+      retry_on_transient: true
+    cooldown_policy:
+      cooldown_seconds: 60
+      failure_threshold: 3
+      quota_exhaustion_cooldown_seconds: 300
+    quota:
+      token_limit: 500000
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 1000
+    headers:
+      HTTP-Referer: https://github.com/bijoux-router
+      X-Title: Bijoux Router
+    tags: [primary, openrouter]
+    failover_enabled: true
+    continue_on_auth_error: false
+    continue_on_invalid_request: false
+
+  # ── Gemini Free Tier ──────────────────────────────────────────
+  - name: gemini-free
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-1.5-flash
+    model_map:
+      gpt-4o-mini: gemini-1.5-flash
+      gpt-4o: gemini-1.5-pro
+    priority: 2
+    timeout_seconds: 60
+    retry_policy:
+      max_retries: 2
+      backoff_base: 1.5
+      backoff_max: 15.0
+      retry_on_transient: true
+    cooldown_policy:
+      cooldown_seconds: 120
+      failure_threshold: 3
+      quota_exhaustion_cooldown_seconds: 600
+    quota:
+      token_limit: 1000000
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 1500
+    tags: [free-tier, gemini]
+    failover_enabled: true
+    continue_on_auth_error: false
+    continue_on_invalid_request: false
+
+  # ── OpenAI-compatible custom endpoint ─────────────────────────
+  - name: local-vllm
+    enabled: false          # disabled by default — enable when local
+    provider_type: openai_compatible
+    base_url: http://localhost:8000/v1
+    api_key: ""
+    default_model: meta-llama/Llama-3-8b-instruct
+    model_map:
+      gpt-4o-mini: meta-llama/Llama-3-8b-instruct
+    priority: 0             # highest priority when enabled
+    timeout_seconds: 30
+    retry_policy:
+      max_retries: 1
+      backoff_base: 0.5
+      backoff_max: 5.0
+      retry_on_transient: true
+    cooldown_policy:
+      cooldown_seconds: 30
+      failure_threshold: 2
+      quota_exhaustion_cooldown_seconds: 60
+    quota:
+      token_limit: 10000000   # local = effectively unlimited
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+    tags: [local, self-hosted]
+    failover_enabled: true
+    continue_on_auth_error: true       # no auth on local
+    continue_on_invalid_request: false
+
+  # ── OpenRouter Account 2 (backup key) ─────────────────────────
+  - name: openrouter-backup
+    enabled: true
+    provider_type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "${OPENROUTER_BACKUP_API_KEY}"
+    default_model: openai/gpt-4o-mini
+    model_map:
+      gpt-4o-mini: openai/gpt-4o-mini
+      gpt-4o: openai/gpt-4o
+    priority: 10            # lower priority = backup
+    timeout_seconds: 90
+    retry_policy:
+      max_retries: 2
+      backoff_base: 1.0
+      backoff_max: 10.0
+      retry_on_transient: true
+    cooldown_policy:
+      cooldown_seconds: 60
+      failure_threshold: 3
+      quota_exhaustion_cooldown_seconds: 300
+    quota:
+      token_limit: 200000
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+    tags: [backup, openrouter]
+    failover_enabled: true
+    continue_on_auth_error: false
+    continue_on_invalid_request: false

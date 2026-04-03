@@ -1,0 +1,1895 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bijoux Quota-Aware LLM Gateway — The Complete Guide</title>
+    <style>
+        :root {
+            --bg: #0f1117;
+            --surface: #161b22;
+            --surface2: #1c2333;
+            --border: #30363d;
+            --text: #e6edf3;
+            --text-muted: #8b949e;
+            --accent: #58a6ff;
+            --accent2: #a371f7;
+            --green: #3fb950;
+            --yellow: #d29922;
+            --red: #f85149;
+            --orange: #db6d28;
+            --code-bg: #0d1117;
+        }
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.7;
+            font-size: 16px;
+        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* Layout */
+        .page { display: flex; min-height: 100vh; }
+        .sidebar {
+            width: 280px;
+            min-width: 280px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            padding: 24px 16px;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+        }
+        .sidebar h2 { font-size: 14px; color: var(--accent); text-transform: uppercase; letter-spacing: 1px; margin: 20px 0 8px; }
+        .sidebar h2:first-child { margin-top: 0; }
+        .sidebar a {
+            display: block;
+            padding: 4px 8px;
+            border-radius: 6px;
+            color: var(--text-muted);
+            font-size: 14px;
+            margin: 1px 0;
+        }
+        .sidebar a:hover { background: var(--surface2); color: var(--text); text-decoration: none; }
+        .sidebar .logo { font-size: 22px; font-weight: 700; color: var(--text); margin-bottom: 24px; display: block; }
+        .sidebar .logo span { color: var(--accent2); }
+
+        .main { flex: 1; max-width: 900px; padding: 40px 48px 80px; }
+        @media (max-width: 1000px) {
+            .sidebar { display: none; }
+            .main { padding: 24px 20px 60px; }
+        }
+
+        /* Typography */
+        h1 { font-size: 36px; font-weight: 800; margin-bottom: 12px; line-height: 1.2; }
+        h1 .subtitle { display: block; font-size: 18px; font-weight: 400; color: var(--text-muted); margin-top: 8px; }
+        h2 { font-size: 26px; font-weight: 700; margin: 48px 0 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+        h3 { font-size: 20px; font-weight: 600; margin: 32px 0 12px; color: var(--accent); }
+        h4 { font-size: 16px; font-weight: 600; margin: 24px 0 8px; }
+        p { margin: 0 0 16px; }
+        ul, ol { margin: 0 0 16px; padding-left: 24px; }
+        li { margin-bottom: 6px; }
+
+        /* Code */
+        code {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 2px 6px;
+            font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+            font-size: 14px;
+        }
+        pre {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 16px 20px;
+            overflow-x: auto;
+            margin: 0 0 20px;
+            line-height: 1.5;
+        }
+        pre code { background: none; border: none; padding: 0; font-size: 13.5px; }
+
+        /* Info boxes */
+        .box {
+            border-radius: 8px;
+            padding: 16px 20px;
+            margin: 16px 0 20px;
+            border-left: 4px solid;
+        }
+        .box-info { background: rgba(88,166,255,0.08); border-color: var(--accent); }
+        .box-warn { background: rgba(210,153,34,0.08); border-color: var(--yellow); }
+        .box-danger { background: rgba(248,81,73,0.08); border-color: var(--red); }
+        .box-success { background: rgba(63,185,80,0.08); border-color: var(--green); }
+        .box-title { font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px; }
+        .box-info .box-title { color: var(--accent); }
+        .box-warn .box-title { color: var(--yellow); }
+        .box-danger .box-title { color: var(--red); }
+        .box-success .box-title { color: var(--green); }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0 0 20px;
+            font-size: 14px;
+        }
+        th, td {
+            text-align: left;
+            padding: 10px 12px;
+            border: 1px solid var(--border);
+        }
+        th { background: var(--surface2); font-weight: 600; white-space: nowrap; }
+        td { background: var(--surface); }
+        td code { font-size: 13px; }
+
+        /* Steps */
+        .step {
+            display: flex;
+            gap: 16px;
+            margin: 20px 0;
+        }
+        .step-num {
+            flex-shrink: 0;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--accent);
+            color: var(--bg);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 16px;
+        }
+        .step-content { flex: 1; }
+        .step-content h4 { margin-top: 4px; }
+
+        /* Badge */
+        .badge {
+            display: inline-block;
+            padding: 2px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        .badge-required { background: var(--red); color: #fff; }
+        .badge-default { background: var(--surface2); color: var(--text-muted); border: 1px solid var(--border); }
+        .badge-type { background: var(--accent2); color: #fff; }
+
+        /* Flow diagram */
+        .flow {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 24px;
+            margin: 16px 0 20px;
+            font-family: 'Cascadia Code', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            white-space: pre;
+            overflow-x: auto;
+        }
+
+        .tab-group { margin: 16px 0 20px; }
+        .tab-buttons { display: flex; gap: 0; border-bottom: 1px solid var(--border); }
+        .tab-btn {
+            padding: 8px 20px;
+            background: transparent;
+            color: var(--text-muted);
+            border: none;
+            border-bottom: 2px solid transparent;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            font-family: inherit;
+        }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .tab-btn:hover { color: var(--text); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        .toc-num { color: var(--accent2); font-weight: 600; margin-right: 4px; }
+        hr { border: none; border-top: 1px solid var(--border); margin: 32px 0; }
+    </style>
+</head>
+<body>
+<div class="page">
+
+<!-- ─── SIDEBAR ───────────────────────────────── -->
+<nav class="sidebar">
+    <div class="logo"><span>&#9670;</span> Bijoux Gateway</div>
+    <h2>Getting Started</h2>
+    <a href="#what-is-this">What Is This?</a>
+    <a href="#how-it-works">How It Works</a>
+    <a href="#installation">Installation</a>
+    <a href="#quickstart">5-Minute Quickstart</a>
+    <h2>Configuration</h2>
+    <a href="#config-file">The Config File</a>
+    <a href="#env-vars">Environment Variables</a>
+    <a href="#provider-setup-gemini">Setup: Google Gemini</a>
+    <a href="#provider-setup-openrouter">Setup: OpenRouter</a>
+    <a href="#provider-setup-groq">Setup: Groq</a>
+    <a href="#provider-setup-anthropic">Setup: Anthropic</a>
+    <a href="#provider-setup-cohere">Setup: Cohere</a>
+    <a href="#provider-setup-cloudflare">Setup: Cloudflare</a>
+    <a href="#provider-setup-huggingface">Setup: Hugging Face</a>
+    <a href="#provider-setup-replicate">Setup: Replicate</a>
+    <a href="#provider-setup-openai-compat">All OpenAI-Compatible</a>
+    <a href="#all-options">All Config Options</a>
+    <h2>Usage</h2>
+    <a href="#basic-usage">Basic Python Usage</a>
+    <a href="#chat-messages">Chat Messages</a>
+    <a href="#response-object">The Response Object</a>
+    <a href="#error-handling">Error Handling</a>
+    <a href="#status-inspection">Status &amp; Quota</a>
+    <h2>CLI Tool</h2>
+    <a href="#cli">CLI Commands</a>
+    <h2>Advanced</h2>
+    <a href="#quota-explained">Quota System Explained</a>
+    <a href="#failover-explained">Failover Explained</a>
+    <a href="#cooldown-explained">Cooldown Explained</a>
+    <a href="#adding-providers">Adding Custom Providers</a>
+    <a href="#integration">Integration Examples</a>
+    <h2>Reference</h2>
+    <a href="#error-categories">Error Categories</a>
+    <a href="#full-config-ref">Full Config Reference</a>
+    <a href="#troubleshooting">Troubleshooting</a>
+</nav>
+
+<!-- ─── MAIN CONTENT ─────────────────────────── -->
+<main class="main">
+
+<!-- ============================================= -->
+<h1 id="top">Bijoux Quota-Aware LLM Gateway
+    <span class="subtitle">The Complete Idiot's Guide — from zero to production</span>
+</h1>
+
+<p>This guide walks you through <strong>everything</strong> you need to use the Bijoux Router, step by step.
+No assumptions about your experience level. If you can copy-paste, you can use this.</p>
+
+<!-- ============================================= -->
+<h2 id="what-is-this">What Is This? (Plain English)</h2>
+
+<p>Imagine you have accounts with multiple AI services (like Google Gemini, OpenRouter, Groq, etc.).
+Each account has a <strong>daily limit</strong> on how much you can use it. When one runs out, you have to
+manually switch to another. Annoying, right?</p>
+
+<p><strong>Bijoux Router solves this.</strong> You write one line of code to send a request, and the system:</p>
+
+<ol>
+    <li>Picks the best provider that still has quota left</li>
+    <li>Sends your request to it</li>
+    <li>If that provider says "nope, you're out of quota" — it <strong>automatically retries</strong> with the next one</li>
+    <li>Tracks how many tokens you've used on each provider</li>
+    <li>Returns one clean response — you never have to think about which provider answered</li>
+</ol>
+
+<div class="box box-success">
+    <div class="box-title">&#10003; The One-Sentence Summary</div>
+    One API call in &rarr; best available provider selected &rarr; quota tracked &rarr; automatic failover if needed &rarr; clean response out.
+</div>
+
+<!-- ============================================= -->
+<h2 id="how-it-works">How It Works (The Flow)</h2>
+
+<div class="flow">Your Code
+  │
+  ▼
+router.process(LLMRequest(prompt="Hello"))
+  │
+  ▼
+┌──────────────────────────────────┐
+│  1. Estimate tokens needed       │
+│  2. Pick best provider by quota  │
+│  3. Reserve tokens               │
+│  4. Send request                 │
+│  5a. SUCCESS → record usage      │──→ Return response
+│  5b. QUOTA ERROR → try next      │
+│  5c. ALL FAIL → raise error      │
+└──────────────────────────────────┘
+  │
+  ▼
+SQLite DB (remembers usage across restarts)</div>
+
+<!-- ============================================= -->
+<h2 id="installation">Installation</h2>
+
+<h3>Prerequisites</h3>
+<ul>
+    <li><strong>Python 3.11 or newer</strong> — <a href="https://www.python.org/downloads/">Download Python</a></li>
+    <li>A terminal / command prompt</li>
+    <li>An API key from at least one LLM provider</li>
+</ul>
+
+<h3>Step-by-Step Install</h3>
+
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+        <h4>Get the code</h4>
+        <p>If you received this as a folder, just keep it wherever you like.<br>
+        If it's in a git repo:</p>
+        <pre><code>git clone &lt;repo-url&gt; bijoux-router
+cd bijoux-router</code></pre>
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+        <h4>Install it as a Python package</h4>
+        <p>Open a terminal <strong>inside the bijoux-router folder</strong> and run:</p>
+        <pre><code># Basic install
+pip install -e .
+
+# With test/dev tools included
+pip install -e ".[dev]"</code></pre>
+        <div class="box box-info">
+            <div class="box-title">&#9432; What does <code>-e .</code> mean?</div>
+            It installs the package in "editable" mode from the current folder. Any changes you make
+            to the source code take effect immediately — no reinstall needed.
+        </div>
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+        <h4>Verify the install</h4>
+        <pre><code>python -c "from bijoux_router import BijouxRouter; print('OK')"</code></pre>
+        <p>If you see <code>OK</code>, you're good.</p>
+    </div>
+</div>
+
+<h3>Using Bijoux in Your Own Project</h3>
+
+<p>You have two options:</p>
+
+<h4>Option A: Install from the folder (recommended)</h4>
+<p>Point pip at the bijoux-router folder from <strong>any other project</strong>:</p>
+<pre><code># From your project folder, pointing to wherever bijoux-router lives:
+pip install -e "C:\path\to\bijoux-router"
+
+# Or on Mac/Linux:
+pip install -e "/home/you/bijoux-router"</code></pre>
+<p>Now you can <code>from bijoux_router import BijouxRouter</code> in any Python file in that project.</p>
+
+<h4>Option B: Copy the package folder</h4>
+<p>Copy the entire <code>bijoux_router/</code> folder into your project and put the dependencies in your
+own <code>requirements.txt</code>:</p>
+<pre><code>pydantic>=2.5
+httpx>=0.25
+pyyaml>=6.0
+click>=8.1
+tiktoken>=0.5
+tenacity>=8.2</code></pre>
+<p>Then run <code>pip install -r requirements.txt</code>.</p>
+
+<!-- ============================================= -->
+<h2 id="quickstart">5-Minute Quickstart</h2>
+
+<p>This gets you from zero to a working request in 5 minutes.</p>
+
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+        <h4>Set your API key as an environment variable</h4>
+        <div class="tab-group">
+            <div class="tab-buttons">
+                <button class="tab-btn active" onclick="showTab(this, 'env-win')">Windows (PowerShell)</button>
+                <button class="tab-btn" onclick="showTab(this, 'env-mac')">Mac / Linux</button>
+            </div>
+            <div id="env-win" class="tab-panel active">
+<pre><code>$env:GEMINI_API_KEY = "your-key-here"</code></pre>
+            </div>
+            <div id="env-mac" class="tab-panel">
+<pre><code>export GEMINI_API_KEY="your-key-here"</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+        <h4>Create a config file</h4>
+        <p>Create a file called <code>my_config.yaml</code>:</p>
+<pre><code>providers:
+  - name: my-gemini
+    enabled: true
+    provider_type: gemini
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-1.5-flash
+    priority: 1
+    quota:
+      token_limit: 1000000
+      period_type: day
+      period_value: 1
+
+storage_path: my_app_state.db</code></pre>
+    </div>
+</div>
+
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+        <h4>Write a Python script</h4>
+<pre><code>import asyncio
+from bijoux_router import BijouxRouter, LLMRequest
+
+async def main():
+    # Load your config
+    router = BijouxRouter.from_yaml("my_config.yaml")
+
+    # Send a request — that's it!
+    response = await router.process(
+        LLMRequest(prompt="What is the capital of France?")
+    )
+
+    print(response.content)     # "The capital of France is Paris."
+    print(response.provider_name)  # "my-gemini"
+
+    router.close()
+
+asyncio.run(main())</code></pre>
+    </div>
+</div>
+
+<div class="box box-success">
+    <div class="box-title">&#10003; That's it!</div>
+    Three things: set env var, create YAML, call <code>router.process()</code>. Everything else is optional.
+</div>
+
+<!-- ============================================= -->
+<h2 id="config-file">The Config File (YAML)</h2>
+
+<p>The config file is where you tell Bijoux about your LLM providers. It's written in YAML — a simple
+text format that uses indentation (like Python).</p>
+
+<h3>Minimal Config File</h3>
+<pre><code>providers:
+  - name: my-provider        # A name you choose (any string)
+    provider_type: gemini     # The type of LLM service
+    api_key: "${MY_API_KEY}"  # Your API key (from environment variable)
+    default_model: gemini-1.5-flash  # Which model to use</code></pre>
+
+<p>That's the absolute minimum. Everything else has sensible defaults.</p>
+
+<h3>Full Config File Structure</h3>
+<pre><code># ─── Global Settings ──────────────────────────────
+selection_strategy:
+  strategy_type: priority_quota  # How to pick providers
+  fairness_cursor: true          # Spread load across same-priority providers
+
+default_timeout_seconds: 60      # HTTP timeout
+max_failover_attempts: 5         # Max providers to try per request
+storage_path: bijoux_state.db    # Where to save usage data
+log_level: INFO                  # Logging verbosity
+redact_secrets: true             # Hide API keys in logs
+
+# ─── Providers ────────────────────────────────────
+providers:
+  - name: ...
+    # (see provider sections below)
+
+  - name: ...
+    # (you can have as many as you want)</code></pre>
+
+<!-- ============================================= -->
+<h2 id="env-vars">Environment Variables &amp; Secrets</h2>
+
+<div class="box box-danger">
+    <div class="box-title">&#9888; Never hard-code API keys in config files!</div>
+    Use the <code>${VARIABLE_NAME}</code> syntax. Bijoux will read the value from your system's
+    environment variables at startup.
+</div>
+
+<p><strong>How it works:</strong></p>
+<pre><code># In your YAML config:
+api_key: "${GEMINI_API_KEY}"
+
+# Bijoux reads the environment variable GEMINI_API_KEY at startup
+# and replaces it with the actual value.
+# If the variable doesn't exist → clear error message at startup.</code></pre>
+
+<h3>Setting Environment Variables</h3>
+
+<h4>Windows (PowerShell) — temporary (current session only)</h4>
+<pre><code>$env:GEMINI_API_KEY = "AIzaSy..."
+$env:OPENROUTER_API_KEY = "sk-or-..."
+$env:GROQ_API_KEY = "gsk_..."</code></pre>
+
+<h4>Windows — permanent (survives reboots)</h4>
+<pre><code>[System.Environment]::SetEnvironmentVariable("GEMINI_API_KEY", "AIzaSy...", "User")</code></pre>
+
+<h4>Mac / Linux — temporary</h4>
+<pre><code>export GEMINI_API_KEY="AIzaSy..."
+export OPENROUTER_API_KEY="sk-or-..."
+export GROQ_API_KEY="gsk_..."</code></pre>
+
+<h4>Mac / Linux — permanent (add to <code>~/.bashrc</code> or <code>~/.zshrc</code>)</h4>
+<pre><code>echo 'export GEMINI_API_KEY="AIzaSy..."' >> ~/.bashrc
+source ~/.bashrc</code></pre>
+
+<h4>In a <code>.env</code> file (with python-dotenv)</h4>
+<pre><code># .env file
+GEMINI_API_KEY=AIzaSy...
+OPENROUTER_API_KEY=sk-or-...
+GROQ_API_KEY=gsk_...</code></pre>
+<pre><code># In your Python code, BEFORE loading the router:
+from dotenv import load_dotenv
+load_dotenv()  # loads .env into environment
+
+from bijoux_router import BijouxRouter
+router = BijouxRouter.from_yaml("config.yaml")</code></pre>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-gemini">Provider Setup: Google Gemini</h2>
+
+<h3>1. Get Your API Key</h3>
+<ol>
+    <li>Go to <a href="https://aistudio.google.com/app/apikey">Google AI Studio &rarr; API Keys</a></li>
+    <li>Click <strong>"Create API Key"</strong></li>
+    <li>Copy the key (starts with <code>AIza...</code>)</li>
+    <li>Set it as an environment variable: <code>GEMINI_API_KEY</code></li>
+</ol>
+
+<h3>2. Gemini Free Tier Limits (as of 2025)</h3>
+<table>
+    <tr><th>Model</th><th>Requests/min</th><th>Tokens/min</th><th>Requests/day</th></tr>
+    <tr><td>gemini-1.5-flash</td><td>15</td><td>1,000,000</td><td>1,500</td></tr>
+    <tr><td>gemini-1.5-pro</td><td>2</td><td>32,000</td><td>50</td></tr>
+    <tr><td>gemini-2.0-flash</td><td>15</td><td>1,000,000</td><td>1,500</td></tr>
+</table>
+
+<h3>3. Complete Gemini Config (Every Option Explained)</h3>
+<pre><code>- name: gemini-free                    # YOUR name for this provider (anything you want)
+  enabled: true                        # true = active, false = skip this provider
+  provider_type: gemini                # MUST be "gemini" for Google's API
+
+  # ─── Connection ──────────────────────
+  base_url: "https://generativelanguage.googleapis.com/v1beta"
+      # The Gemini API endpoint. You almost never need to change this.
+      # Default: the above URL. You can omit this line entirely.
+
+  api_key: "${GEMINI_API_KEY}"
+      # Your API key. ALWAYS use ${ENV_VAR} syntax — never paste the key directly.
+
+  timeout_seconds: 60
+      # How long to wait for a response before giving up (seconds).
+      # Gemini is usually fast, 60s is generous.
+
+  # ─── Models ──────────────────────────
+  default_model: gemini-1.5-flash
+      # The model to use when the caller doesn't specify one.
+
+  model_map:
+      # Translation table: "what you ask for" → "what Gemini actually uses"
+      # Lets your code use generic names like "gpt-4o-mini" and Bijoux maps
+      # them to the right Gemini model automatically.
+      gpt-4o-mini: gemini-1.5-flash
+      gpt-4o: gemini-1.5-pro
+      gpt-4: gemini-1.5-pro
+      fast: gemini-2.0-flash
+      # If you request a model NOT in this map, it's passed through as-is.
+
+  # ─── Priority & Routing ──────────────
+  priority: 1
+      # Lower number = tried first. If you have 3 providers with priority
+      # 1, 2, 3 — priority 1 is tried first, then 2, then 3.
+
+  selection_weight: 1.0
+      # For future weighted random selection. 1.0 is the default.
+
+  # ─── Quota ───────────────────────────
+  quota:
+    token_limit: 1000000
+        # Maximum tokens you want to use on this provider per period.
+        # Set this to match your actual plan limit (or lower for safety).
+
+    request_limit: 1500
+        # Maximum number of requests per period. null/omit = unlimited.
+
+    period_type: day
+        # How long a quota period lasts.
+        # Options: "minute", "hour", "day", "month", "custom"
+
+    period_value: 1
+        # Multiplier. period_type=day + period_value=1 = 1-day window.
+        # period_type=hour + period_value=6 = 6-hour window.
+
+    reset_mode: fixed
+        # "fixed" = resets at calendar boundaries (midnight, top of hour, etc.)
+        # "rolling" = sliding window from the first request
+
+  # ─── Retry Policy ────────────────────
+  retry_policy:
+    max_retries: 2
+        # How many times to retry THIS provider on temporary errors
+        # (like 500 Internal Server Error). Does NOT count as failover.
+
+    backoff_base: 1.5
+        # Exponential backoff: wait 1.5s, then 3s, then 6s, etc.
+
+    backoff_max: 15.0
+        # Never wait longer than this many seconds between retries.
+
+    retry_on_transient: true
+        # true = retry on 5xx errors, timeouts, network errors.
+        # false = fail immediately on any error.
+
+  # ─── Cooldown Policy ─────────────────
+  cooldown_policy:
+    cooldown_seconds: 120
+        # After too many failures, put this provider "on ice" for this long.
+
+    failure_threshold: 3
+        # How many consecutive failures trigger cooldown.
+
+    quota_exhaustion_cooldown_seconds: 600
+        # When provider says "quota exhausted", cool down for this long (10 min).
+        # This prevents hammering a provider that's clearly out of quota.
+
+  # ─── Extra Options ───────────────────
+  headers: {}
+      # Extra HTTP headers. Gemini doesn't need any. You can omit this.
+
+  tags: [free-tier, gemini, google]
+      # Labels for your own organization. Not used by the router.
+
+  metadata: {}
+      # Arbitrary data for your own use.
+
+  failover_enabled: true
+      # true = if this provider fails, try the next one.
+      # false = if this provider fails, the entire request fails.
+
+  continue_on_auth_error: false
+      # Should the router try another provider if this one says "bad API key"?
+      # Usually false — if your key is wrong, fix it, don't mask it.
+
+  continue_on_invalid_request: false
+      # Should the router try another provider on a 400 Bad Request?
+      # Usually false — the request is probably bad on all providers.
+
+  cost:
+      # Optional. For future "cheapest provider" selection.
+      input_cost_per_1k: 0.0
+      output_cost_per_1k: 0.0
+      currency: USD</code></pre>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-openrouter">Provider Setup: OpenRouter</h2>
+
+<h3>1. Get Your API Key</h3>
+<ol>
+    <li>Go to <a href="https://openrouter.ai/keys">openrouter.ai/keys</a></li>
+    <li>Click <strong>"Create Key"</strong></li>
+    <li>Copy the key (starts with <code>sk-or-...</code>)</li>
+    <li>Set it as an environment variable: <code>OPENROUTER_API_KEY</code></li>
+</ol>
+
+<div class="box box-info">
+    <div class="box-title">&#9432; About OpenRouter</div>
+    OpenRouter is a <strong>proxy</strong> that gives you access to many LLM models (GPT-4, Claude, Llama, etc.)
+    through a single API. It uses the OpenAI-compatible format. Some models have free tiers.
+</div>
+
+<h3>2. OpenRouter Free Tier Limits</h3>
+<p>Free-tier limits vary by model. Check <a href="https://openrouter.ai/models">openrouter.ai/models</a>
+and filter by "Free". Typical: 200 requests/day, limited tokens.</p>
+
+<h3>3. Complete OpenRouter Config</h3>
+<pre><code>- name: openrouter-main
+  enabled: true
+  provider_type: openrouter          # MUST be "openrouter"
+
+  # ─── Connection ──────────────────────
+  base_url: "https://openrouter.ai/api/v1"
+      # The OpenRouter API endpoint. This is the default — you can omit it.
+
+  api_key: "${OPENROUTER_API_KEY}"
+      # Your OpenRouter API key.
+
+  timeout_seconds: 90
+      # OpenRouter sometimes routes to slower providers, 90s is safer.
+
+  # ─── Models ──────────────────────────
+  default_model: openai/gpt-4o-mini
+      # OpenRouter model names follow the format "provider/model-name".
+      # Check openrouter.ai/models for the full list.
+
+  model_map:
+      gpt-4o-mini: openai/gpt-4o-mini
+      gpt-4o: openai/gpt-4o
+      claude-sonnet: anthropic/claude-3.5-sonnet
+      llama-70b: meta-llama/llama-3.1-70b-instruct
+      free-fast: meta-llama/llama-3.1-8b-instruct:free
+      # Note the ":free" suffix for free-tier models on OpenRouter!
+
+  # ─── Priority & Routing ──────────────
+  priority: 2
+      # Try this AFTER priority-1 providers (like a local model or Gemini free).
+
+  # ─── Quota ───────────────────────────
+  quota:
+    token_limit: 500000
+    request_limit: 1000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+
+  # ─── Retry Policy ────────────────────
+  retry_policy:
+    max_retries: 2
+    backoff_base: 1.0
+    backoff_max: 10.0
+    retry_on_transient: true
+
+  # ─── Cooldown Policy ─────────────────
+  cooldown_policy:
+    cooldown_seconds: 60
+    failure_threshold: 3
+    quota_exhaustion_cooldown_seconds: 300
+
+  # ─── OpenRouter-Specific Headers ─────
+  headers:
+    HTTP-Referer: "https://your-app-url.com"
+        # OpenRouter requires a referer header. Set to your app's URL.
+    X-Title: "My App Name"
+        # Shows up in your OpenRouter dashboard for tracking.
+    # Note: Authorization header is set automatically from api_key.
+
+  tags: [openrouter, paid]
+  failover_enabled: true
+  continue_on_auth_error: false
+  continue_on_invalid_request: false</code></pre>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-groq">Provider Setup: Groq</h2>
+
+<h3>1. Get Your API Key</h3>
+<ol>
+    <li>Go to <a href="https://console.groq.com/keys">console.groq.com/keys</a></li>
+    <li>Click <strong>"Create API Key"</strong></li>
+    <li>Copy the key (starts with <code>gsk_...</code>)</li>
+    <li>Set it as an environment variable: <code>GROQ_API_KEY</code></li>
+</ol>
+
+<div class="box box-info">
+    <div class="box-title">&#9432; About Groq</div>
+    Groq provides blazing-fast inference using custom LPU hardware. They use the standard
+    OpenAI-compatible API format, so we use <code>provider_type: openai_compatible</code>.
+    Free tier includes generous limits on Llama and Mixtral models.
+</div>
+
+<h3>2. Groq Free Tier Limits (as of 2025)</h3>
+<table>
+    <tr><th>Model</th><th>Requests/min</th><th>Tokens/min</th><th>Requests/day</th></tr>
+    <tr><td>llama-3.1-70b-versatile</td><td>30</td><td>131,072</td><td>14,400</td></tr>
+    <tr><td>llama-3.1-8b-instant</td><td>30</td><td>131,072</td><td>14,400</td></tr>
+    <tr><td>mixtral-8x7b-32768</td><td>30</td><td>131,072</td><td>14,400</td></tr>
+    <tr><td>gemma2-9b-it</td><td>30</td><td>131,072</td><td>14,400</td></tr>
+</table>
+
+<h3>3. Complete Groq Config</h3>
+<pre><code>- name: groq-free
+  enabled: true
+  provider_type: openai_compatible   # Groq uses the OpenAI format!
+
+  # ─── Connection ──────────────────────
+  base_url: "https://api.groq.com/openai/v1"
+      # Groq's OpenAI-compatible endpoint. Must include /openai/v1.
+
+  api_key: "${GROQ_API_KEY}"
+
+  timeout_seconds: 30
+      # Groq is FAST. 30 seconds is plenty.
+
+  # ─── Models ──────────────────────────
+  default_model: llama-3.1-70b-versatile
+      # Groq model names are straightforward.
+
+  model_map:
+      gpt-4o-mini: llama-3.1-8b-instant
+      gpt-4o: llama-3.1-70b-versatile
+      fast: llama-3.1-8b-instant
+      smart: llama-3.1-70b-versatile
+
+  # ─── Priority & Routing ──────────────
+  priority: 1
+      # Priority 1 = try Groq first (it's fast and free!)
+
+  # ─── Quota ───────────────────────────
+  quota:
+    token_limit: 500000
+        # Set conservatively below your actual limit.
+    request_limit: 14400
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+
+  # ─── Retry Policy ────────────────────
+  retry_policy:
+    max_retries: 1
+    backoff_base: 0.5
+    backoff_max: 5.0
+    retry_on_transient: true
+
+  # ─── Cooldown Policy ─────────────────
+  cooldown_policy:
+    cooldown_seconds: 30
+    failure_threshold: 3
+    quota_exhaustion_cooldown_seconds: 120
+
+  # ─── Extra ───────────────────────────
+  headers: {}
+      # Groq doesn't need extra headers.
+
+  tags: [groq, free-tier, fast]
+  failover_enabled: true
+  continue_on_auth_error: false
+  continue_on_invalid_request: false</code></pre>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-anthropic">Provider Setup: Anthropic (Claude)</h2>
+
+<p>Anthropic provides the Claude family of models. Bijoux has a <strong>dedicated adapter</strong> for the Anthropic Messages API
+because it uses a proprietary format (system messages are a top-level parameter, not a message role; auth uses
+<code>x-api-key</code>, not <code>Bearer</code>).</p>
+
+<h3>Step 1 — Get your API key</h3>
+<ol>
+    <li>Go to <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a></li>
+    <li>Create an account and add billing</li>
+    <li>Go to <strong>API Keys</strong> → Create new key</li>
+    <li>Copy the key (starts with <code>sk-ant-</code>)</li>
+</ol>
+
+<h3>Step 2 — Set environment variable</h3>
+<pre><code># Windows
+set ANTHROPIC_API_KEY=sk-ant-your-key-here
+
+# Linux / macOS
+export ANTHROPIC_API_KEY=sk-ant-your-key-here</code></pre>
+
+<h3>Step 3 — Config entry</h3>
+<pre><code>- name: anthropic
+  enabled: true
+  provider_type: anthropic     # uses the dedicated Anthropic adapter
+  base_url: https://api.anthropic.com
+  api_key: "${ANTHROPIC_API_KEY}"
+  default_model: claude-sonnet-4-20250514
+  model_map:
+    claude-sonnet: claude-sonnet-4-20250514
+    claude-haiku: claude-3-5-haiku-20241022
+    claude-opus: claude-3-opus-20240229
+  priority: 2
+  timeout_seconds: 90
+  retry_policy:
+    max_retries: 2
+    backoff_base: 1.0
+    backoff_max: 10.0
+    retry_on_transient: true
+  cooldown_policy:
+    cooldown_seconds: 60
+    failure_threshold: 3
+    quota_exhaustion_cooldown_seconds: 300
+  quota:
+    token_limit: 300000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  tags: [anthropic, claude]
+  failover_enabled: true</code></pre>
+
+<div class="box box-info">
+    <strong>Tip:</strong> Anthropic's <code>max_tokens</code> is <strong>required</strong> — if you don't pass it in your request,
+    the adapter defaults to 1024. Set it explicitly in your <code>LLMRequest</code> for best results.
+</div>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-cohere">Provider Setup: Cohere</h2>
+
+<p>Cohere provides the Command-R family of models. Bijoux has a <strong>dedicated adapter</strong> for the Cohere v2 Chat API.</p>
+
+<h3>Step 1 — Get your API key</h3>
+<ol>
+    <li>Go to <a href="https://dashboard.cohere.com/" target="_blank">dashboard.cohere.com</a></li>
+    <li>Create an account (free tier available)</li>
+    <li>Go to <strong>API Keys</strong> → copy your key</li>
+</ol>
+
+<h3>Step 2 — Set environment variable</h3>
+<pre><code>set COHERE_API_KEY=your-cohere-key-here</code></pre>
+
+<h3>Step 3 — Config entry</h3>
+<pre><code>- name: cohere
+  enabled: true
+  provider_type: cohere    # uses the dedicated Cohere adapter
+  base_url: https://api.cohere.com
+  api_key: "${COHERE_API_KEY}"
+  default_model: command-r-plus
+  model_map:
+    cohere-r: command-r
+    cohere-r-plus: command-r-plus
+  priority: 3
+  timeout_seconds: 60
+  quota:
+    token_limit: 500000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  tags: [cohere]
+  failover_enabled: true</code></pre>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-cloudflare">Provider Setup: Cloudflare Workers AI</h2>
+
+<p>Cloudflare Workers AI runs models on Cloudflare's global edge network. Bijoux has a
+<strong>dedicated adapter</strong> because the native API uses account-scoped URLs and a different response wrapper.</p>
+
+<h3>Step 1 — Get your credentials</h3>
+<ol>
+    <li>Go to <a href="https://dash.cloudflare.com/" target="_blank">dash.cloudflare.com</a></li>
+    <li>Navigate to <strong>AI</strong> → <strong>Workers AI</strong></li>
+    <li>Note your <strong>Account ID</strong> (visible in the URL or on the right sidebar)</li>
+    <li>Go to <strong>My Profile</strong> → <strong>API Tokens</strong> → Create a token with Workers AI read permission</li>
+</ol>
+
+<h3>Step 2 — Set environment variables</h3>
+<pre><code>set CLOUDFLARE_API_KEY=your-cf-api-token
+set CLOUDFLARE_ACCOUNT_ID=your-account-id</code></pre>
+
+<h3>Step 3 — Config entry</h3>
+<pre><code>- name: cloudflare
+  enabled: true
+  provider_type: cloudflare    # uses the dedicated Cloudflare adapter
+  base_url: https://api.cloudflare.com
+  api_key: "${CLOUDFLARE_API_KEY}"
+  default_model: "@cf/meta/llama-3.1-70b-instruct"
+  model_map:
+    llama-70b: "@cf/meta/llama-3.1-70b-instruct"
+    llama-8b: "@cf/meta/llama-3.1-8b-instruct"
+  priority: 4
+  timeout_seconds: 60
+  quota:
+    token_limit: 300000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  metadata:
+    account_id: "${CLOUDFLARE_ACCOUNT_ID}"   # REQUIRED for native API
+  tags: [cloudflare, edge]
+  failover_enabled: true</code></pre>
+
+<div class="box box-info">
+    <strong>Alternative:</strong> Cloudflare also offers an OpenAI-compatible gateway at
+    <code>https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway}/openai</code> —
+    you can use <code>provider_type: openai_compatible</code> with that base_url instead.
+</div>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-huggingface">Provider Setup: Hugging Face Inference</h2>
+
+<p>Hugging Face hosts thousands of open-source models on their Inference API (serverless and dedicated endpoints).
+Bijoux has a <strong>dedicated adapter</strong> supporting both the native TGI format and the OpenAI-compatible chat endpoint.</p>
+
+<h3>Step 1 — Get your API token</h3>
+<ol>
+    <li>Go to <a href="https://huggingface.co/settings/tokens" target="_blank">huggingface.co/settings/tokens</a></li>
+    <li>Create a new access token with <strong>Read</strong> permission (free tier available)</li>
+</ol>
+
+<h3>Step 2 — Set environment variable</h3>
+<pre><code>set HF_API_KEY=hf_your-token-here</code></pre>
+
+<h3>Step 3 — Config entry</h3>
+<pre><code>- name: huggingface
+  enabled: true
+  provider_type: huggingface    # uses the dedicated HF adapter
+  base_url: https://api-inference.huggingface.co
+  api_key: "${HF_API_KEY}"
+  default_model: meta-llama/Llama-3.1-70B-Instruct
+  model_map:
+    llama-70b: meta-llama/Llama-3.1-70B-Instruct
+    llama-8b: meta-llama/Llama-3.1-8B-Instruct
+  priority: 4
+  timeout_seconds: 120       # HF models may need cold start time
+  retry_policy:
+    max_retries: 3
+    backoff_base: 2.0
+    backoff_max: 30.0
+    retry_on_transient: true
+  quota:
+    token_limit: 300000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  metadata:
+    use_chat_endpoint: false  # set true to use /v1/chat/completions
+  tags: [huggingface, open-source]
+  failover_enabled: true</code></pre>
+
+<div class="box box-info">
+    <strong>Tip:</strong> Set <code>metadata.use_chat_endpoint: true</code> if your HF model supports
+    the OpenAI-compatible <code>/v1/chat/completions</code> format. When <code>false</code>, the adapter
+    uses the native <code>/models/{model}</code> TGI endpoint.
+</div>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-replicate">Provider Setup: Replicate</h2>
+
+<p>Replicate hosts thousands of open-source models with a pay-per-use API. It uses an <strong>asynchronous
+predictions pattern</strong> (create prediction → poll until complete), so Bijoux has a <strong>dedicated adapter</strong>
+that handles the polling automatically.</p>
+
+<h3>Step 1 — Get your API token</h3>
+<ol>
+    <li>Go to <a href="https://replicate.com/account/api-tokens" target="_blank">replicate.com/account/api-tokens</a></li>
+    <li>Create a new token (starts with <code>r8_</code>)</li>
+</ol>
+
+<h3>Step 2 — Set environment variable</h3>
+<pre><code>set REPLICATE_API_TOKEN=r8_your-token-here</code></pre>
+
+<h3>Step 3 — Config entry</h3>
+<pre><code>- name: replicate
+  enabled: true
+  provider_type: replicate    # uses the dedicated Replicate adapter
+  base_url: https://api.replicate.com
+  api_key: "${REPLICATE_API_TOKEN}"
+  default_model: meta/meta-llama-3-70b-instruct
+  model_map:
+    llama-70b: meta/meta-llama-3-70b-instruct
+    llama-8b: meta/meta-llama-3-8b-instruct
+  priority: 4
+  timeout_seconds: 120
+  quota:
+    token_limit: 300000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  metadata:
+    poll_interval: 1.0        # seconds between polls
+    max_poll_attempts: 120    # max polls (~2 min)
+  tags: [replicate, open-source]
+  failover_enabled: true</code></pre>
+
+<div class="box box-info">
+    <strong>Alternative:</strong> Replicate also offers an OpenAI-compatible proxy at
+    <code>https://openai-proxy.replicate.com/v1</code> — you can use
+    <code>provider_type: openai_compatible</code> with that URL instead.
+</div>
+
+<!-- ============================================= -->
+<h2 id="provider-setup-openai-compat">All OpenAI-Compatible Providers (Quick Reference)</h2>
+
+<p>The majority of LLM providers now expose an <strong>OpenAI-compatible</strong> <code>/v1/chat/completions</code>
+endpoint. For these, use <code>provider_type: openai_compatible</code> and just change the <code>base_url</code>
+and <code>api_key</code>. Here's a quick-reference table:</p>
+
+<div style="overflow-x: auto; margin-bottom: 20px;">
+<table>
+<thead>
+<tr>
+    <th>Provider</th>
+    <th>base_url</th>
+    <th>Env Var for api_key</th>
+    <th>Example Model</th>
+</tr>
+</thead>
+<tbody>
+<tr><td>Groq</td><td><code>https://api.groq.com/openai/v1</code></td><td><code>GROQ_API_KEY</code></td><td>llama-3.3-70b-versatile</td></tr>
+<tr><td>Cerebras</td><td><code>https://api.cerebras.ai/v1</code></td><td><code>CEREBRAS_API_KEY</code></td><td>llama3.1-70b</td></tr>
+<tr><td>Together AI</td><td><code>https://api.together.xyz/v1</code></td><td><code>TOGETHER_API_KEY</code></td><td>meta-llama/Llama-3.3-70B-Instruct-Turbo</td></tr>
+<tr><td>Fireworks AI</td><td><code>https://api.fireworks.ai/inference/v1</code></td><td><code>FIREWORKS_API_KEY</code></td><td>accounts/fireworks/models/llama-v3p1-70b-instruct</td></tr>
+<tr><td>Mistral AI</td><td><code>https://api.mistral.ai/v1</code></td><td><code>MISTRAL_API_KEY</code></td><td>mistral-large-latest</td></tr>
+<tr><td>Mistral Codestral</td><td><code>https://codestral.mistral.ai/v1</code></td><td><code>MISTRAL_CODESTRAL_API_KEY</code></td><td>codestral-latest</td></tr>
+<tr><td>DeepSeek</td><td><code>https://api.deepseek.com/v1</code></td><td><code>DEEPSEEK_API_KEY</code></td><td>deepseek-chat</td></tr>
+<tr><td>SambaNova</td><td><code>https://api.sambanova.ai/v1</code></td><td><code>SAMBANOVA_API_KEY</code></td><td>Meta-Llama-3.1-70B-Instruct</td></tr>
+<tr><td>NVIDIA NIM</td><td><code>https://integrate.api.nvidia.com/v1</code></td><td><code>NVIDIA_API_KEY</code></td><td>meta/llama-3.1-70b-instruct</td></tr>
+<tr><td>xAI / Grok</td><td><code>https://api.x.ai/v1</code></td><td><code>XAI_API_KEY</code></td><td>grok-2-latest</td></tr>
+<tr><td>GitHub Models</td><td><code>https://models.inference.ai.azure.com</code></td><td><code>GITHUB_TOKEN</code></td><td>gpt-4o-mini</td></tr>
+<tr><td>Scaleway</td><td><code>https://api.scaleway.ai/v1</code></td><td><code>SCALEWAY_API_KEY</code></td><td>llama-3.1-70b-instruct</td></tr>
+<tr><td>OVHcloud</td><td><code>https://...endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1</code></td><td><code>OVHCLOUD_API_KEY</code></td><td>llama-3.1-70b-instruct</td></tr>
+<tr><td>AI21 Labs</td><td><code>https://api.ai21.com/studio/v1</code></td><td><code>AI21_API_KEY</code></td><td>jamba-1.5-large</td></tr>
+<tr><td>Alibaba DashScope</td><td><code>https://dashscope-intl.aliyuncs.com/compatible-mode/v1</code></td><td><code>DASHSCOPE_API_KEY</code></td><td>qwen-max</td></tr>
+<tr><td>Nebius</td><td><code>https://api.studio.nebius.ai/v1</code></td><td><code>NEBIUS_API_KEY</code></td><td>meta-llama/Llama-3.1-70B-Instruct</td></tr>
+<tr><td>Novita AI</td><td><code>https://api.novita.ai/v3/openai</code></td><td><code>NOVITA_API_KEY</code></td><td>meta-llama/llama-3.1-70b-instruct</td></tr>
+<tr><td>Hyperbolic</td><td><code>https://api.hyperbolic.xyz/v1</code></td><td><code>HYPERBOLIC_API_KEY</code></td><td>meta-llama/Llama-3.1-70B-Instruct</td></tr>
+<tr><td>Inference.net</td><td><code>https://api.inference.net/v1</code></td><td><code>INFERENCE_NET_API_KEY</code></td><td>meta-llama/llama-3.1-70b-instruct</td></tr>
+<tr><td>Chutes AI</td><td><code>https://api.chutes.ai/v1</code></td><td><code>CHUTES_API_KEY</code></td><td>deepseek-ai/DeepSeek-V3-0324</td></tr>
+<tr><td>Targon</td><td><code>https://api.targon.com/v1</code></td><td><code>TARGON_API_KEY</code></td><td>deepseek-ai/DeepSeek-V3</td></tr>
+<tr><td>Kluster AI</td><td><code>https://api.kluster.ai/v1</code></td><td><code>KLUSTER_API_KEY</code></td><td>klusterai/Meta-Llama-3.1-405B-Instruct-Turbo</td></tr>
+<tr><td>Crusoe</td><td><code>https://inference.crusoecloud.com/v1</code></td><td><code>CRUSOE_API_KEY</code></td><td>meta-llama/Llama-3.3-70B-Instruct</td></tr>
+<tr><td>Venice AI</td><td><code>https://api.venice.ai/api/v1</code></td><td><code>VENICE_API_KEY</code></td><td>llama-3.3-70b</td></tr>
+<tr><td>Upstage</td><td><code>https://api.upstage.ai/v1/solar</code></td><td><code>UPSTAGE_API_KEY</code></td><td>solar-pro</td></tr>
+<tr><td>Baseten</td><td><code>https://bridge.baseten.co/v1/direct</code></td><td><code>BASETEN_API_KEY</code></td><td>(your model)</td></tr>
+<tr><td>NLP Cloud</td><td><code>https://api.nlpcloud.io/v1/gpu</code></td><td><code>NLPCLOUD_API_KEY</code></td><td>chatdolphin</td></tr>
+</tbody>
+</table>
+</div>
+
+<p>Example config entry for <strong>any</strong> of the above — just swap the values:</p>
+
+<pre><code>- name: together-ai       # pick a descriptive name
+  enabled: true
+  provider_type: openai_compatible
+  base_url: https://api.together.xyz/v1
+  api_key: "${TOGETHER_API_KEY}"
+  default_model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+  priority: 3
+  timeout_seconds: 60
+  quota:
+    token_limit: 500000
+    period_type: day
+    period_value: 1
+    reset_mode: fixed
+  tags: [together, open-source]
+  failover_enabled: true</code></pre>
+
+<div class="box box-info">
+    <strong>Full example:</strong> See <code>config/all_providers.yaml</code> for a ready-to-use config
+    with all 35 providers pre-configured. Just set the environment variables for the ones you want.
+</div>
+
+<!-- ============================================= -->
+<h2 id="all-options">Putting It All Together — Full 3-Provider Config</h2>
+
+<p>Here's a complete, copy-paste-ready config with all three providers:</p>
+
+<pre><code># config/providers.yaml
+# Bijoux Quota-Aware LLM Gateway — Full Example
+# ═══════════════════════════════════════════════
+
+# ─── Global Settings ──────────────────────────────
+selection_strategy:
+  strategy_type: priority_quota
+  fairness_cursor: true
+
+default_timeout_seconds: 60
+max_failover_attempts: 5
+storage_path: bijoux_state.db
+log_level: INFO
+redact_secrets: true
+
+# ─── Providers (tried in priority order) ──────────
+providers:
+
+  # PROVIDER 1: Groq — fast and free, tried first
+  - name: groq-free
+    enabled: true
+    provider_type: openai_compatible
+    base_url: "https://api.groq.com/openai/v1"
+    api_key: "${GROQ_API_KEY}"
+    default_model: llama-3.1-70b-versatile
+    model_map:
+      gpt-4o-mini: llama-3.1-8b-instant
+      gpt-4o: llama-3.1-70b-versatile
+    priority: 1
+    timeout_seconds: 30
+    retry_policy: { max_retries: 1, backoff_base: 0.5, backoff_max: 5.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 30, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 120 }
+    quota: { token_limit: 500000, request_limit: 14400, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [groq, free, fast]
+    failover_enabled: true
+
+  # PROVIDER 2: Google Gemini — generous free tier
+  - name: gemini-free
+    enabled: true
+    provider_type: gemini
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-1.5-flash
+    model_map:
+      gpt-4o-mini: gemini-1.5-flash
+      gpt-4o: gemini-1.5-pro
+    priority: 2
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.5, backoff_max: 15.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota: { token_limit: 1000000, request_limit: 1500, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [gemini, free]
+    failover_enabled: true
+
+  # PROVIDER 3: OpenRouter — paid backup with many models
+  - name: openrouter-backup
+    enabled: true
+    provider_type: openrouter
+    api_key: "${OPENROUTER_API_KEY}"
+    default_model: openai/gpt-4o-mini
+    model_map:
+      gpt-4o-mini: openai/gpt-4o-mini
+      gpt-4o: openai/gpt-4o
+    priority: 10
+    timeout_seconds: 90
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 200000, period_type: day, period_value: 1, reset_mode: fixed }
+    headers:
+      HTTP-Referer: "https://my-app.com"
+      X-Title: "My App"
+    tags: [openrouter, backup, paid]
+    failover_enabled: true</code></pre>
+
+<div class="box box-success">
+    <div class="box-title">&#10003; How this works in practice</div>
+    <ol>
+        <li>Every request goes to <strong>Groq</strong> first (priority 1, fast &amp; free)</li>
+        <li>If Groq is out of quota &rarr; automatically tries <strong>Gemini</strong> (priority 2)</li>
+        <li>If Gemini is also out &rarr; falls back to <strong>OpenRouter</strong> (priority 10, paid backup)</li>
+        <li>Your code sees none of this — just gets a response</li>
+    </ol>
+</div>
+
+<!-- ============================================= -->
+<h2 id="basic-usage">Basic Python Usage</h2>
+
+<h3>Simple Prompt</h3>
+<pre><code>import asyncio
+from bijoux_router import BijouxRouter, LLMRequest
+
+async def main():
+    router = BijouxRouter.from_yaml("config/providers.yaml")
+
+    response = await router.process(
+        LLMRequest(prompt="Explain quantum computing in simple terms")
+    )
+
+    print(response.content)
+    router.close()
+
+asyncio.run(main())</code></pre>
+
+<h3>With All Options</h3>
+<pre><code>response = await router.process(
+    LLMRequest(
+        prompt="Write unit tests for this function",
+        model="gpt-4o",          # Will be mapped per-provider via model_map
+        max_tokens=1000,          # Limit response length
+        temperature=0.2,          # Low = more deterministic
+        top_p=0.9,                # Nucleus sampling
+        stop=["```"],             # Stop when you see this string
+        timeout_override=120,     # Override default timeout for this request
+        metadata={"task": "code-review"},  # Your custom metadata
+        tenant="team-alpha",      # Multi-tenant identifier
+        tags=["urgent"],          # Request tags
+    )
+)</code></pre>
+
+<h3>Synchronous Usage (No async)</h3>
+<p>If you don't want to deal with <code>async</code>/<code>await</code>:</p>
+<pre><code>import asyncio
+from bijoux_router import BijouxRouter, LLMRequest
+
+router = BijouxRouter.from_yaml("config/providers.yaml")
+
+# Use asyncio.run() to call the async method from sync code
+response = asyncio.run(
+    router.process(LLMRequest(prompt="Hello, world!"))
+)
+
+print(response.content)
+router.close()</code></pre>
+
+<!-- ============================================= -->
+<h2 id="chat-messages">Chat Messages (Multi-Turn Conversations)</h2>
+
+<p>Instead of a simple prompt, you can send a list of messages (like ChatGPT):</p>
+
+<pre><code>from bijoux_router import BijouxRouter, LLMRequest, ChatMessage, MessageRole
+
+router = BijouxRouter.from_yaml("config/providers.yaml")
+
+response = await router.process(
+    LLMRequest(
+        messages=[
+            ChatMessage(
+                role=MessageRole.SYSTEM,
+                content="You are a helpful coding assistant. Be concise."
+            ),
+            ChatMessage(
+                role=MessageRole.USER,
+                content="What does the 'yield' keyword do in Python?"
+            ),
+            ChatMessage(
+                role=MessageRole.ASSISTANT,
+                content="yield pauses a function and returns a value to the caller..."
+            ),
+            ChatMessage(
+                role=MessageRole.USER,
+                content="Give me a practical example."
+            ),
+        ],
+        max_tokens=500,
+    )
+)
+
+print(response.content)</code></pre>
+
+<h3>Message Roles</h3>
+<table>
+    <tr><th>Role</th><th>Use</th></tr>
+    <tr><td><code>MessageRole.SYSTEM</code></td><td>Instructions for the AI (personality, constraints)</td></tr>
+    <tr><td><code>MessageRole.USER</code></td><td>Your questions / input</td></tr>
+    <tr><td><code>MessageRole.ASSISTANT</code></td><td>Previous AI responses (for context)</td></tr>
+    <tr><td><code>MessageRole.TOOL</code></td><td>Tool/function call results (advanced)</td></tr>
+</table>
+
+<!-- ============================================= -->
+<h2 id="response-object">The Response Object</h2>
+
+<p>Every call to <code>router.process()</code> returns an <code>LLMResponse</code> with these fields:</p>
+
+<pre><code>response = await router.process(LLMRequest(prompt="Hello"))
+
+# ─── What you usually need ──────────────
+response.content          # "Hello! How can I help you today?"
+response.provider_name    # "groq-free" (who actually answered)
+response.model            # "llama-3.1-70b-versatile" (actual model used)
+
+# ─── Token usage ─────────────────────────
+response.usage.prompt_tokens       # 5  (tokens in your input)
+response.usage.completion_tokens   # 12 (tokens in the response)
+response.usage.total_tokens        # 17 (sum)
+
+# ─── Metadata ─────────────────────────────
+response.request_id        # "a1b2c3d4..."  (unique ID for this request)
+response.finish_reason     # FinishReason.STOP  (why it stopped generating)
+response.latency_ms        # 142.5  (round-trip time in milliseconds)
+response.created_at        # 1711800000.0  (Unix timestamp)
+
+# ─── Failover info ────────────────────────
+response.failover_attempts         # [] (empty if first provider worked)
+# If failover happened:
+response.failover_attempts[0].provider_name    # "groq-free"
+response.failover_attempts[0].error_category   # "RATE_LIMITED"
+response.failover_attempts[0].error_message    # "Too many requests"
+
+# ─── Raw provider response ────────────────
+response.raw_response      # The actual JSON from the provider (dict)</code></pre>
+
+<!-- ============================================= -->
+<h2 id="error-handling">Error Handling</h2>
+
+<pre><code>from bijoux_router import (
+    BijouxRouter, LLMRequest,
+    AllProvidersExhaustedError,
+    NoViableProviderError,
+    BijouxError,
+)
+
+router = BijouxRouter.from_yaml("config/providers.yaml")
+
+try:
+    response = await router.process(LLMRequest(prompt="Hello"))
+    print(response.content)
+
+except NoViableProviderError:
+    # ALL providers are either disabled, in cooldown, or out of quota
+    # BEFORE any request was even attempted.
+    print("No providers available right now. Try again later.")
+
+except AllProvidersExhaustedError as e:
+    # Every provider was tried and they ALL failed.
+    print(f"All providers failed! Attempts: {len(e.attempts)}")
+    for attempt in e.attempts:
+        print(f"  {attempt['provider_name']}: {attempt['error_category']}")
+
+except BijouxError as e:
+    # Catch-all for any Bijoux-specific error
+    print(f"Bijoux error: {e}")
+
+finally:
+    router.close()</code></pre>
+
+<!-- ============================================= -->
+<h2 id="status-inspection">Status &amp; Quota Inspection</h2>
+
+<pre><code>import json
+
+router = BijouxRouter.from_yaml("config/providers.yaml")
+
+# ─── See all provider statuses ──────────
+statuses = router.get_provider_status()
+print(json.dumps(statuses, indent=2))
+# Returns:
+# [
+#   {
+#     "name": "groq-free",
+#     "enabled": true,
+#     "provider_type": "openai_compatible",
+#     "priority": 1,
+#     "in_cooldown": false,
+#     "cooldown_until": null,
+#     "failure_count": 0,
+#     "token_limit": 500000,
+#     "used_tokens": 12345,
+#     "reserved_tokens": 0,
+#     "remaining_tokens": 487655,
+#     "utilization_pct": 2.47
+#   },
+#   ...
+# ]
+
+# ─── See just quota info ────────────────
+quotas = router.get_quota_status()
+for q in quotas:
+    print(f"{q['provider_name']}: {q['remaining_tokens']} tokens remaining "
+          f"({q['utilization_pct']}% used)")
+
+# ─── Reset a provider's usage ───────────
+router.reset_provider_usage("groq-free")  # Clears all counters
+
+# ─── Reload config without restart ──────
+router.reload_config("config/providers.yaml")
+
+router.close()</code></pre>
+
+<!-- ============================================= -->
+<h2 id="cli">CLI Tool</h2>
+
+<p>Bijoux includes a command-line tool for management and debugging.</p>
+
+<h3>General Usage</h3>
+<pre><code># All commands use -c to specify config file (default: config/providers.yaml)
+bijoux -c config/providers.yaml &lt;command&gt;</code></pre>
+
+<h3>Commands</h3>
+
+<h4>validate-config</h4>
+<p>Check your config file for errors:</p>
+<pre><code>bijoux -c config/providers.yaml validate-config
+
+# Output:
+# Configuration is valid: config/providers.yaml
+#   No warnings.
+
+# Or if there's an issue:
+# Configuration error: Environment variable 'GROQ_API_KEY' referenced in config is not set</code></pre>
+
+<h4>show-provider-status</h4>
+<p>See all providers, their health, and quota usage:</p>
+<pre><code>bijoux -c config/providers.yaml show-provider-status</code></pre>
+
+<h4>show-quota</h4>
+<p>Focus on just the quota numbers:</p>
+<pre><code>bijoux -c config/providers.yaml show-quota</code></pre>
+
+<h4>simulate-request</h4>
+<p>Send a real test request through the router:</p>
+<pre><code>bijoux -c config/providers.yaml simulate-request -p "What is 2+2?" -m gpt-4o-mini --max-tokens 50</code></pre>
+
+<h4>reset-provider-usage</h4>
+<p>Clear all counters for a specific provider:</p>
+<pre><code>bijoux -c config/providers.yaml reset-provider-usage groq-free</code></pre>
+
+<!-- ============================================= -->
+<h2 id="quota-explained">Quota System Explained</h2>
+
+<p>This is the heart of Bijoux. Here's how it works in plain English:</p>
+
+<h3>The Lifecycle of a Request</h3>
+
+<div class="step">
+    <div class="step-num">1</div>
+    <div class="step-content">
+        <h4>ESTIMATE — Before sending</h4>
+        <p>Bijoux estimates how many tokens your request will use (based on character count).
+        This is <em>approximate</em> — it's impossible to know exactly before the provider processes it.</p>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">2</div>
+    <div class="step-content">
+        <h4>RESERVE — Before sending</h4>
+        <p>Those estimated tokens are "reserved" in the database. This prevents two concurrent requests
+        from both thinking there's enough quota and then both getting rejected.</p>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">3</div>
+    <div class="step-content">
+        <h4>SEND — The actual API call</h4>
+        <p>The request goes to the provider. The provider may accept it or reject it.</p>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">4a</div>
+    <div class="step-content">
+        <h4>RECONCILE — On success</h4>
+        <p>The reservation is released and replaced with <strong>actual</strong> token usage reported by the provider.
+        This corrects any estimation error.</p>
+    </div>
+</div>
+<div class="step">
+    <div class="step-num">4b</div>
+    <div class="step-content">
+        <h4>RELEASE — On failure</h4>
+        <p>The reservation is released (nothing was actually used). The request moves to the next provider.</p>
+    </div>
+</div>
+
+<div class="box box-warn">
+    <div class="box-title">&#9888; Important: Quota Tracking Is Approximate</div>
+    <p>Bijoux tracks its <em>own</em> estimate of how much quota you've used. This can drift from reality because:</p>
+    <ul>
+        <li>Token estimates aren't perfect</li>
+        <li>Some providers don't report actual token usage</li>
+        <li>You might use the same API key in other tools</li>
+    </ul>
+    <p>This is <strong>by design</strong>. The failover system catches the difference: if Bijoux thinks you have
+    quota but the provider says you don't, it simply tries the next provider.</p>
+</div>
+
+<h3>Quota Windows</h3>
+<table>
+    <tr><th>period_type</th><th>period_value</th><th>Meaning</th><th>reset_mode=fixed resets at</th></tr>
+    <tr><td>minute</td><td>1</td><td>Every minute</td><td>Top of each minute</td></tr>
+    <tr><td>hour</td><td>1</td><td>Every hour</td><td>Top of each hour</td></tr>
+    <tr><td>day</td><td>1</td><td>Every day</td><td>Midnight UTC</td></tr>
+    <tr><td>day</td><td>7</td><td>Every 7 days</td><td>Midnight UTC each 7th day</td></tr>
+    <tr><td>month</td><td>1</td><td>Every month</td><td>1st of month UTC</td></tr>
+    <tr><td>custom</td><td>3600</td><td>Every 3600 seconds</td><td>Epoch-based bucket</td></tr>
+</table>
+
+<!-- ============================================= -->
+<h2 id="failover-explained">Failover Explained</h2>
+
+<p>Failover = "if one provider fails, automatically try the next one."</p>
+
+<h3>What Triggers Failover?</h3>
+<table>
+    <tr><th>Error</th><th>Failover?</th><th>Why</th></tr>
+    <tr><td>QUOTA_EXHAUSTED</td><td style="color:var(--green)">&#10003; Yes</td><td>Provider is out of tokens — try another</td></tr>
+    <tr><td>RATE_LIMITED</td><td style="color:var(--green)">&#10003; Yes</td><td>Too many requests/second — try another</td></tr>
+    <tr><td>INSUFFICIENT_CREDIT</td><td style="color:var(--green)">&#10003; Yes</td><td>Billing issue — try another</td></tr>
+    <tr><td>BILLING_BLOCKED</td><td style="color:var(--green)">&#10003; Yes</td><td>Payment problem — try another</td></tr>
+    <tr><td>MODEL_UNAVAILABLE</td><td style="color:var(--green)">&#10003; Yes</td><td>Maybe another provider has it</td></tr>
+    <tr><td>TRANSIENT_ERROR (5xx)</td><td style="color:var(--green)">&#10003; Yes</td><td>Server glitch — retry then failover</td></tr>
+    <tr><td>NETWORK_ERROR</td><td style="color:var(--green)">&#10003; Yes</td><td>Connection issue — try another</td></tr>
+    <tr><td>TIMEOUT</td><td style="color:var(--green)">&#10003; Yes</td><td>Too slow — try a faster one</td></tr>
+    <tr><td>AUTH_ERROR</td><td style="color:var(--red)">&#10007; No*</td><td>Your key is wrong — fix it</td></tr>
+    <tr><td>INVALID_REQUEST</td><td style="color:var(--red)">&#10007; No*</td><td>Bad request — fix your code</td></tr>
+</table>
+<p>* Can be overridden per-provider with <code>continue_on_auth_error: true</code> or <code>continue_on_invalid_request: true</code></p>
+
+<h3>The Failover Chain</h3>
+<div class="flow">Request arrives
+  │
+  ▼
+Provider A (priority 1) ──→ QUOTA_EXHAUSTED ──→ cooldown A
+  │
+  ▼
+Provider B (priority 2) ──→ RATE_LIMITED ──→ cooldown B
+  │
+  ▼
+Provider C (priority 10) ──→ SUCCESS! ──→ Return response
+                                          (with failover_attempts showing A and B failed)</div>
+
+<!-- ============================================= -->
+<h2 id="cooldown-explained">Cooldown Explained</h2>
+
+<p>When a provider fails, Bijoux can put it "on ice" to avoid hammering it:</p>
+
+<h3>Two Types of Cooldown</h3>
+
+<h4>1. Quota Exhaustion Cooldown</h4>
+<p>When a provider says "you're out of quota" → cooldown for <code>quota_exhaustion_cooldown_seconds</code></p>
+<pre><code>cooldown_policy:
+  quota_exhaustion_cooldown_seconds: 600   # 10 minutes
+  # After receiving QUOTA_EXHAUSTED, RATE_LIMITED, INSUFFICIENT_CREDIT, or BILLING_BLOCKED</code></pre>
+
+<h4>2. Repeated Failure Cooldown</h4>
+<p>When a provider fails <code>failure_threshold</code> times in a row → cooldown for <code>cooldown_seconds</code></p>
+<pre><code>cooldown_policy:
+  failure_threshold: 3      # After 3 consecutive failures (any type)
+  cooldown_seconds: 60      # Cool down for 1 minute</code></pre>
+
+<p>After the cooldown expires, the provider is automatically available again.</p>
+
+<!-- ============================================= -->
+<h2 id="adding-providers">Adding Custom Providers</h2>
+
+<p>Any service that uses the OpenAI chat completions format works with <code>provider_type: openai_compatible</code>.</p>
+
+<h3>Examples</h3>
+
+<h4>Together AI</h4>
+<pre><code>- name: together
+  provider_type: openai_compatible
+  base_url: "https://api.together.xyz/v1"
+  api_key: "${TOGETHER_API_KEY}"
+  default_model: meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo</code></pre>
+
+<h4>Azure OpenAI</h4>
+<pre><code>- name: azure-gpt4
+  provider_type: openai_compatible
+  base_url: "https://YOUR-RESOURCE.openai.azure.com/openai/deployments/YOUR-DEPLOYMENT"
+  api_key: "${AZURE_OPENAI_KEY}"
+  default_model: gpt-4
+  headers:
+    api-version: "2024-02-15-preview"</code></pre>
+
+<h4>Local vLLM / Ollama</h4>
+<pre><code>- name: local-llm
+  provider_type: openai_compatible
+  base_url: "http://localhost:11434/v1"    # Ollama
+  api_key: ""                               # No auth for local
+  default_model: llama3.1
+  priority: 0                               # Try local first!
+  continue_on_auth_error: true              # No auth expected
+  quota:
+    token_limit: 999999999                  # Effectively unlimited</code></pre>
+
+<h4>Fully Custom Provider (Python)</h4>
+<pre><code>from bijoux_router.providers.base import BaseProviderClient
+from bijoux_router.providers.factory import register_provider_type
+from bijoux_router.exceptions.errors import ProviderErrorCategory
+from bijoux_router.models.request_response import LLMRequest, LLMResponse
+
+class MyCustomProvider(BaseProviderClient):
+    async def send_request(self, request: LLMRequest) -> LLMResponse:
+        # Your implementation here
+        ...
+
+    def classify_error(self, status_code, body):
+        if status_code == 429:
+            return ProviderErrorCategory.RATE_LIMITED
+        if status_code == 401:
+            return ProviderErrorCategory.AUTH_ERROR
+        return ProviderErrorCategory.UNKNOWN_ERROR
+
+# Register it — now you can use provider_type: "my_custom" in YAML
+register_provider_type("my_custom", MyCustomProvider)</code></pre>
+
+<!-- ============================================= -->
+<h2 id="integration">Integration Examples</h2>
+
+<h3>FastAPI Web Service</h3>
+<pre><code>from fastapi import FastAPI, HTTPException
+from contextlib import asynccontextmanager
+from bijoux_router import BijouxRouter, LLMRequest, AllProvidersExhaustedError
+
+router_instance: BijouxRouter | None = None
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    global router_instance
+    router_instance = BijouxRouter.from_yaml("config/providers.yaml")
+    yield
+    router_instance.close()
+
+app = FastAPI(lifespan=lifespan)
+
+@app.post("/generate")
+async def generate(prompt: str, model: str = None, max_tokens: int = 500):
+    try:
+        response = await router_instance.process(
+            LLMRequest(prompt=prompt, model=model, max_tokens=max_tokens)
+        )
+        return {
+            "content": response.content,
+            "provider": response.provider_name,
+            "model": response.model,
+            "tokens": response.usage.total_tokens,
+        }
+    except AllProvidersExhaustedError:
+        raise HTTPException(503, "All LLM providers are currently unavailable")
+
+@app.get("/status")
+async def status():
+    return router_instance.get_provider_status()</code></pre>
+
+<h3>Background Worker (Celery-style)</h3>
+<pre><code>import asyncio
+from bijoux_router import BijouxRouter, LLMRequest
+
+# Initialize once at module level
+router = BijouxRouter.from_yaml("config/providers.yaml")
+
+def process_document(document_text: str) -> str:
+    """Called by your task queue."""
+    response = asyncio.run(
+        router.process(LLMRequest(
+            prompt=f"Summarize the following document:\n\n{document_text}",
+            max_tokens=500,
+            temperature=0.1,
+        ))
+    )
+    return response.content</code></pre>
+
+<h3>Simple Script</h3>
+<pre><code>import asyncio
+import sys
+from bijoux_router import BijouxRouter, LLMRequest
+
+async def ask(question: str) -> str:
+    router = BijouxRouter.from_yaml("config/providers.yaml")
+    try:
+        response = await router.process(
+            LLMRequest(prompt=question, max_tokens=1000)
+        )
+        return response.content
+    finally:
+        router.close()
+
+if __name__ == "__main__":
+    question = " ".join(sys.argv[1:]) or "Tell me a joke"
+    print(asyncio.run(ask(question)))</code></pre>
+
+<!-- ============================================= -->
+<h2 id="error-categories">Error Categories Reference</h2>
+
+<table>
+    <tr><th>Category</th><th>Typical HTTP Code</th><th>What It Means</th><th>Failover?</th><th>Cooldown?</th></tr>
+    <tr><td><code>QUOTA_EXHAUSTED</code></td><td>429</td><td>Token limit reached for the period</td><td>&#10003;</td><td>Quota CD</td></tr>
+    <tr><td><code>RATE_LIMITED</code></td><td>429</td><td>Too many requests per second/minute</td><td>&#10003;</td><td>Quota CD</td></tr>
+    <tr><td><code>INSUFFICIENT_CREDIT</code></td><td>402</td><td>No money/credits left on account</td><td>&#10003;</td><td>Quota CD</td></tr>
+    <tr><td><code>BILLING_BLOCKED</code></td><td>403</td><td>Payment issue on account</td><td>&#10003;</td><td>Quota CD</td></tr>
+    <tr><td><code>AUTH_ERROR</code></td><td>401, 403</td><td>Invalid or expired API key</td><td>Policy*</td><td>No</td></tr>
+    <tr><td><code>INVALID_REQUEST</code></td><td>400</td><td>Malformed request</td><td>Policy*</td><td>No</td></tr>
+    <tr><td><code>MODEL_UNAVAILABLE</code></td><td>404</td><td>Model not found on provider</td><td>&#10003;</td><td>No</td></tr>
+    <tr><td><code>TRANSIENT_ERROR</code></td><td>500-599</td><td>Server error, retryable</td><td>&#10003;</td><td>After threshold</td></tr>
+    <tr><td><code>NETWORK_ERROR</code></td><td>—</td><td>Connection refused/reset</td><td>&#10003;</td><td>After threshold</td></tr>
+    <tr><td><code>TIMEOUT</code></td><td>—</td><td>Request timed out</td><td>&#10003;</td><td>After threshold</td></tr>
+    <tr><td><code>PROVIDER_MISCONFIGURATION</code></td><td>—</td><td>Config error</td><td>No</td><td>No</td></tr>
+    <tr><td><code>UNKNOWN_ERROR</code></td><td>—</td><td>Unmapped error</td><td>No</td><td>No</td></tr>
+</table>
+<p><em>* Controlled by <code>continue_on_auth_error</code> / <code>continue_on_invalid_request</code> per provider.</em></p>
+
+<!-- ============================================= -->
+<h2 id="full-config-ref">Full Configuration Reference</h2>
+
+<h3>Global Settings</h3>
+<table>
+    <tr><th>Field</th><th>Type</th><th>Default</th><th>Description</th></tr>
+    <tr><td><code>selection_strategy.strategy_type</code></td><td>string</td><td><code>priority_quota</code></td><td>How to pick providers. Options: <code>priority_quota</code>, <code>weighted</code>, <code>cheapest</code>, <code>round_robin</code></td></tr>
+    <tr><td><code>selection_strategy.fairness_cursor</code></td><td>bool</td><td><code>true</code></td><td>Rotate among same-priority providers</td></tr>
+    <tr><td><code>default_timeout_seconds</code></td><td>float</td><td><code>60.0</code></td><td>Default HTTP timeout</td></tr>
+    <tr><td><code>max_failover_attempts</code></td><td>int</td><td><code>5</code></td><td>Max providers to try per request</td></tr>
+    <tr><td><code>storage_path</code></td><td>string</td><td><code>bijoux_state.db</code></td><td>SQLite database file path</td></tr>
+    <tr><td><code>log_level</code></td><td>string</td><td><code>INFO</code></td><td>Logging level (DEBUG, INFO, WARNING, ERROR)</td></tr>
+    <tr><td><code>redact_secrets</code></td><td>bool</td><td><code>true</code></td><td>Hide API keys in log output</td></tr>
+</table>
+
+<h3>Provider Settings</h3>
+<table>
+    <tr><th>Field</th><th>Type</th><th>Default</th><th>Required?</th></tr>
+    <tr><td><code>name</code></td><td>string</td><td>—</td><td><span class="badge badge-required">REQUIRED</span></td></tr>
+    <tr><td><code>provider_type</code></td><td>string</td><td>—</td><td><span class="badge badge-required">REQUIRED</span></td></tr>
+    <tr><td><code>enabled</code></td><td>bool</td><td><code>true</code></td><td></td></tr>
+    <tr><td><code>base_url</code></td><td>string</td><td><code>""</code></td><td></td></tr>
+    <tr><td><code>api_key</code></td><td>string</td><td><code>""</code></td><td></td></tr>
+    <tr><td><code>default_model</code></td><td>string</td><td><code>""</code></td><td></td></tr>
+    <tr><td><code>model_map</code></td><td>dict</td><td><code>{}</code></td><td></td></tr>
+    <tr><td><code>priority</code></td><td>int</td><td><code>0</code></td><td></td></tr>
+    <tr><td><code>selection_weight</code></td><td>float</td><td><code>1.0</code></td><td></td></tr>
+    <tr><td><code>timeout_seconds</code></td><td>float</td><td><code>60.0</code></td><td></td></tr>
+    <tr><td><code>headers</code></td><td>dict</td><td><code>{}</code></td><td></td></tr>
+    <tr><td><code>tags</code></td><td>list</td><td><code>[]</code></td><td></td></tr>
+    <tr><td><code>metadata</code></td><td>dict</td><td><code>{}</code></td><td></td></tr>
+    <tr><td><code>failover_enabled</code></td><td>bool</td><td><code>true</code></td><td></td></tr>
+    <tr><td><code>continue_on_auth_error</code></td><td>bool</td><td><code>false</code></td><td></td></tr>
+    <tr><td><code>continue_on_invalid_request</code></td><td>bool</td><td><code>false</code></td><td></td></tr>
+</table>
+
+<h3>Quota Settings (<code>quota:</code>)</h3>
+<table>
+    <tr><th>Field</th><th>Type</th><th>Default</th><th>Options / Notes</th></tr>
+    <tr><td><code>token_limit</code></td><td>int</td><td><code>1000000</code></td><td>Max tokens per period</td></tr>
+    <tr><td><code>request_limit</code></td><td>int or null</td><td><code>null</code></td><td>Max requests per period; omit for unlimited</td></tr>
+    <tr><td><code>period_type</code></td><td>string</td><td><code>day</code></td><td><code>minute</code>, <code>hour</code>, <code>day</code>, <code>month</code>, <code>custom</code></td></tr>
+    <tr><td><code>period_value</code></td><td>int</td><td><code>1</code></td><td>Multiplier (e.g., 7 + day = weekly)</td></tr>
+    <tr><td><code>reset_mode</code></td><td>string</td><td><code>fixed</code></td><td><code>fixed</code> (calendar) or <code>rolling</code> (sliding window)</td></tr>
+</table>
+
+<h3>Retry Policy (<code>retry_policy:</code>)</h3>
+<table>
+    <tr><th>Field</th><th>Type</th><th>Default</th></tr>
+    <tr><td><code>max_retries</code></td><td>int</td><td><code>2</code></td></tr>
+    <tr><td><code>backoff_base</code></td><td>float</td><td><code>1.0</code></td></tr>
+    <tr><td><code>backoff_max</code></td><td>float</td><td><code>10.0</code></td></tr>
+    <tr><td><code>retry_on_transient</code></td><td>bool</td><td><code>true</code></td></tr>
+</table>
+
+<h3>Cooldown Policy (<code>cooldown_policy:</code>)</h3>
+<table>
+    <tr><th>Field</th><th>Type</th><th>Default</th></tr>
+    <tr><td><code>cooldown_seconds</code></td><td>float</td><td><code>60.0</code></td></tr>
+    <tr><td><code>failure_threshold</code></td><td>int</td><td><code>3</code></td></tr>
+    <tr><td><code>quota_exhaustion_cooldown_seconds</code></td><td>float</td><td><code>300.0</code></td></tr>
+</table>
+
+<h3>Available <code>provider_type</code> Values</h3>
+<table>
+    <tr><th>Value</th><th>API Format</th><th>Use For</th></tr>
+    <tr><td><code>gemini</code></td><td>Google Generative AI</td><td>Google Gemini models</td></tr>
+    <tr><td><code>openrouter</code></td><td>OpenAI-compatible (with extras)</td><td>OpenRouter.ai</td></tr>
+    <tr><td><code>openai_compatible</code></td><td>OpenAI chat completions</td><td>Groq, Together, Azure, vLLM, Ollama, etc.</td></tr>
+    <tr><td><code>openai</code></td><td>Same as openai_compatible</td><td>Alias</td></tr>
+    <tr><td><code>mock</code></td><td>Internal</td><td>Testing only</td></tr>
+</table>
+
+<!-- ============================================= -->
+<h2 id="troubleshooting">Troubleshooting</h2>
+
+<h3>Common Problems</h3>
+
+<h4>"Environment variable 'X' referenced in config is not set"</h4>
+<p>You have <code>${SOME_VAR}</code> in your YAML but haven't set that environment variable.
+Set it in your terminal before running your script. See <a href="#env-vars">Environment Variables</a>.</p>
+
+<h4>"No viable provider found for request"</h4>
+<p>All providers are either:</p>
+<ul>
+    <li>Disabled (<code>enabled: false</code>)</li>
+    <li>In cooldown (recently failed too many times)</li>
+    <li>Out of quota for the current period</li>
+</ul>
+<p>Run <code>bijoux show-provider-status</code> to see what's going on. Try <code>bijoux reset-provider-usage &lt;name&gt;</code> to clear counters.</p>
+
+<h4>"All providers exhausted"</h4>
+<p>Every provider was tried and they all failed. Check the <code>failover_attempts</code> on the exception
+to see why each one failed. Common causes:</p>
+<ul>
+    <li>All API keys are wrong → check credentials</li>
+    <li>All providers genuinely out of quota → wait for reset</li>
+    <li>Network issues → check internet connection</li>
+</ul>
+
+<h4>"Configuration validation failed"</h4>
+<p>Your YAML file has structural issues. Common mistakes:</p>
+<ul>
+    <li>Indentation is wrong (YAML is whitespace-sensitive, use spaces not tabs)</li>
+    <li>Missing required fields (<code>name</code>, <code>provider_type</code>)</li>
+    <li>Duplicate provider names</li>
+</ul>
+<p>Run <code>bijoux validate-config</code> for a detailed error message.</p>
+
+<h4>My provider is always being skipped</h4>
+<ul>
+    <li>Check <code>enabled: true</code></li>
+    <li>Check the provider isn't in cooldown: <code>bijoux show-provider-status</code></li>
+    <li>Check quota isn't exhausted: <code>bijoux show-quota</code></li>
+    <li>Reset if needed: <code>bijoux reset-provider-usage &lt;name&gt;</code></li>
+</ul>
+
+<h4>I get <code>ModuleNotFoundError: No module named 'bijoux_router'</code></h4>
+<ul>
+    <li>Make sure you installed it: <code>pip install -e .</code> from the bijoux-router folder</li>
+    <li>Make sure you're using the same Python environment where you installed it</li>
+    <li>Try <code>python -c "import bijoux_router"</code> to verify</li>
+</ul>
+
+<h4>The database file is locked</h4>
+<p>SQLite has a single-writer limitation. If you're running multiple processes writing to the same <code>.db</code> file,
+they'll queue up. For high-concurrency scenarios, use separate DB files per process or implement a
+PostgreSQL storage backend.</p>
+
+<hr>
+
+<p style="color: var(--text-muted); text-align: center; margin-top: 48px;">
+    Bijoux Quota-Aware LLM Gateway &mdash; Built for developers who want one API call and zero provider headaches.
+</p>
+
+</main>
+</div>
+
+<script>
+function showTab(btn, panelId) {
+    const group = btn.closest('.tab-group');
+    group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    group.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById(panelId).classList.add('active');
+}
+</script>
+</body>
+</html>

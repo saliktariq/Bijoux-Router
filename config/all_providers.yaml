@@ -1,0 +1,943 @@
+# =============================================================================
+# Bijoux Quota-Aware LLM Gateway — All Providers Configuration
+# =============================================================================
+#
+# This configuration file includes EVERY provider from the supported list.
+# Enable/disable individual providers by setting  enabled: true/false.
+#
+# Secrets: Use ${ENV_VAR} syntax — resolved from the process environment at
+# load time.  NEVER hard-code secrets in this file.
+#
+# Provider types:
+#   anthropic         — Anthropic Claude (Messages API)
+#   cloudflare        — Cloudflare Workers AI (native API)
+#   cohere            — Cohere Chat v2 API
+#   gemini            — Google Generative AI (Gemini)
+#   huggingface       — Hugging Face Inference (TGI / chat)
+#   openai_compatible — Any OpenAI-compatible /v1/chat/completions endpoint
+#   openrouter        — OpenRouter (extends openai_compatible with extra headers)
+#   mock              — Test/mock provider
+#
+# Most providers expose an OpenAI-compatible endpoint and work with
+# provider_type: openai_compatible — just set the correct base_url.
+# =============================================================================
+
+selection_strategy:
+  strategy_type: priority_quota
+  fairness_cursor: true
+
+default_timeout_seconds: 60
+max_failover_attempts: 10
+storage_path: bijoux_state.db
+log_level: INFO
+redact_secrets: true
+
+providers:
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 1. OpenRouter  (aggregator — auto-selects free models)
+  #    Hard limit: 50 requests/day across all free models.
+  #    OpenRouter automatically routes to available free models.
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: openrouter
+    enabled: true
+    provider_type: openrouter
+    base_url: https://openrouter.ai/api/v1
+    api_key: "${OPENROUTER_API_KEY}"
+    default_model: ""              # leave empty — OpenRouter auto-selects free models
+    priority: 3
+    timeout_seconds: 90
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 100000000       # effectively unlimited (RPD is the binding constraint)
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 50            # hard daily cap
+    headers:
+      HTTP-Referer: https://github.com/bijoux-router
+      X-Title: Bijoux Router
+    tags: [aggregator, openrouter, free-tier]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 2. Google AI Studio (Gemini) — one entry per model with free quota
+  #    All share the same API key; each has independent quota tracking.
+  #    Priority: higher-throughput models get lower priority numbers (tried first).
+  # ═══════════════════════════════════════════════════════════════════════════
+
+  # ── Gemini 3.1 Flash Lite ─── RPM:15  TPM:250K  RPD:500 ──────────────
+  # Best daily throughput of all Gemini models (500 RPD)
+  - name: gemini-3.1-flash-lite
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-3.1-flash-lite
+    priority: 1
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.5, backoff_max: 15.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 5000000       # daily soft cap (TPM enforced server-side at 250K/min)
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 500         # RPD
+    tags: [free-tier, gemini, google, flash-lite]
+    failover_enabled: true
+
+  # ── Gemini 2.5 Flash ─── RPM:5  TPM:250K  RPD:20 ────────────────────
+  # Smartest free Flash model — low RPD but high quality
+  - name: gemini-2.5-flash
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-2.5-flash
+    priority: 2
+    timeout_seconds: 90
+    retry_policy: { max_retries: 2, backoff_base: 1.5, backoff_max: 15.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 5000000       # daily soft cap (TPM enforced server-side at 250K/min)
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 20          # RPD
+    tags: [free-tier, gemini, google, flash]
+    failover_enabled: true
+
+  # ── Gemini 3 Flash ─── RPM:5  TPM:250K  RPD:20 ──────────────────────
+  - name: gemini-3-flash
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-3.0-flash
+    priority: 2
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.5, backoff_max: 15.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 5000000
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 20          # RPD
+    tags: [free-tier, gemini, google, flash]
+    failover_enabled: true
+
+  # ── Gemini 2.5 Flash Lite ─── RPM:10  TPM:250K  RPD:20 ──────────────
+  - name: gemini-2.5-flash-lite
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemini-2.5-flash-lite
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.5, backoff_max: 15.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 5000000
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 20          # RPD
+    tags: [free-tier, gemini, google, flash-lite]
+    failover_enabled: true
+
+  # ── Gemma 3 27B ─── RPM:30  TPM:15K  RPD:14,400 ─────────────────────
+  # Best quality open Gemma model — huge RPD, small TPM window
+  - name: gemma-3-27b
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemma-3-27b-it
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 15000         # TPM — per-minute enforcement
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 30          # RPM
+    tags: [free-tier, gemini, google, gemma, open-source]
+    failover_enabled: true
+
+  # ── Gemma 3 12B ─── RPM:30  TPM:15K  RPD:14,400 ─────────────────────
+  - name: gemma-3-12b
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemma-3-12b-it
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 15000
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 30
+    tags: [free-tier, gemini, google, gemma, open-source]
+    failover_enabled: true
+
+  # ── Gemma 3 4B ─── RPM:30  TPM:15K  RPD:14,400 ──────────────────────
+  - name: gemma-3-4b
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemma-3-4b-it
+    priority: 6
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 15000
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 30
+    tags: [free-tier, gemini, google, gemma, open-source]
+    failover_enabled: true
+
+  # ── Gemma 3 2B ─── RPM:30  TPM:15K  RPD:14,400 ──────────────────────
+  - name: gemma-3-2b
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemma-3-2b-it
+    priority: 7
+    timeout_seconds: 45
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 15000
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 30
+    tags: [free-tier, gemini, google, gemma, open-source]
+    failover_enabled: true
+
+  # ── Gemma 3 1B ─── RPM:30  TPM:15K  RPD:14,400 ──────────────────────
+  - name: gemma-3-1b
+    enabled: true
+    provider_type: gemini
+    base_url: https://generativelanguage.googleapis.com/v1beta
+    api_key: "${GEMINI_API_KEY}"
+    default_model: gemma-3-1b-it
+    priority: 8
+    timeout_seconds: 30
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 15000
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 30
+    tags: [free-tier, gemini, google, gemma, open-source]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 3. Anthropic (Claude)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: anthropic
+    enabled: true
+    provider_type: anthropic
+    base_url: https://api.anthropic.com
+    api_key: "${ANTHROPIC_API_KEY}"
+    default_model: claude-sonnet-4-20250514
+    model_map:
+      claude-sonnet: claude-sonnet-4-20250514
+      claude-haiku: claude-3-5-haiku-20241022
+      claude-opus: claude-3-opus-20240229
+    priority: 2
+    timeout_seconds: 90
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [anthropic, claude]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 4. Cohere  (100 RPM generate, no known daily cap)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: cohere
+    enabled: true
+    provider_type: cohere
+    base_url: https://api.cohere.com
+    api_key: "${COHERE_API_KEY}"
+    default_model: command-r-plus
+    model_map:
+      cohere-r: command-r
+      cohere-r-plus: command-r-plus
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota:
+      token_limit: 100000000     # no known token cap — effectively unlimited
+      period_type: minute
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 100         # 100 RPM hard limit
+    tags: [cohere, free-tier]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 5. Groq  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: groq
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.groq.com/openai/v1
+    api_key: "${GROQ_API_KEY}"
+    default_model: llama-3.3-70b-versatile
+    model_map:
+      llama-70b: llama-3.3-70b-versatile
+      llama-8b: llama-3.1-8b-instant
+      mixtral: mixtral-8x7b-32768
+    priority: 1
+    timeout_seconds: 30
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 8.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed, request_limit: 14400 }
+    tags: [groq, fast-inference]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 6. Cerebras  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: cerebras
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.cerebras.ai/v1
+    api_key: "${CEREBRAS_API_KEY}"
+    default_model: llama3.1-70b
+    model_map:
+      llama-70b: llama3.1-70b
+      llama-8b: llama3.1-8b
+    priority: 2
+    timeout_seconds: 30
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 1000000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [cerebras, fast-inference]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 7. Together AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: together
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.together.xyz/v1
+    api_key: "${TOGETHER_API_KEY}"
+    default_model: meta-llama/Llama-3.3-70B-Instruct-Turbo
+    model_map:
+      llama-70b: meta-llama/Llama-3.3-70B-Instruct-Turbo
+      mixtral: mistralai/Mixtral-8x7B-Instruct-v0.1
+      qwen-72b: Qwen/Qwen2.5-72B-Instruct-Turbo
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [together, open-source]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 8. Fireworks AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: fireworks
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.fireworks.ai/inference/v1
+    api_key: "${FIREWORKS_API_KEY}"
+    default_model: accounts/fireworks/models/llama-v3p1-70b-instruct
+    model_map:
+      llama-70b: accounts/fireworks/models/llama-v3p1-70b-instruct
+      mixtral: accounts/fireworks/models/mixtral-8x7b-instruct
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [fireworks, open-source]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 9. Mistral AI — La Plateforme  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: mistral
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.mistral.ai/v1
+    api_key: "${MISTRAL_API_KEY}"
+    default_model: mistral-large-latest
+    model_map:
+      mistral-large: mistral-large-latest
+      mistral-small: mistral-small-latest
+      mistral-nemo: open-mistral-nemo
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [mistral]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 10. Mistral — Codestral  (OpenAI-compatible, code-specialist endpoint)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: mistral-codestral
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://codestral.mistral.ai/v1
+    api_key: "${MISTRAL_CODESTRAL_API_KEY}"
+    default_model: codestral-latest
+    model_map:
+      codestral: codestral-latest
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [mistral, code]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 11. DeepSeek Platform  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: deepseek
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.deepseek.com/v1
+    api_key: "${DEEPSEEK_API_KEY}"
+    default_model: deepseek-chat
+    model_map:
+      deepseek-chat: deepseek-chat
+      deepseek-coder: deepseek-coder
+    priority: 2
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [deepseek, budget]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 12. SambaNova Cloud  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: sambanova
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.sambanova.ai/v1
+    api_key: "${SAMBANOVA_API_KEY}"
+    default_model: Meta-Llama-3.1-70B-Instruct
+    model_map:
+      llama-70b: Meta-Llama-3.1-70B-Instruct
+      llama-8b: Meta-Llama-3.1-8B-Instruct
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [sambanova, fast-inference]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 13. NVIDIA NIM  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: nvidia-nim
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://integrate.api.nvidia.com/v1
+    api_key: "${NVIDIA_API_KEY}"
+    default_model: meta/llama-3.1-70b-instruct
+    model_map:
+      llama-70b: meta/llama-3.1-70b-instruct
+      llama-8b: meta/llama-3.1-8b-instruct
+      mixtral: mistralai/mixtral-8x7b-instruct-v0.1
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [nvidia, nim]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 14. Cloudflare Workers AI  (native API)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: cloudflare
+    enabled: true
+    provider_type: cloudflare
+    base_url: https://api.cloudflare.com
+    api_key: "${CLOUDFLARE_API_KEY}"
+    default_model: "@cf/meta/llama-3.1-70b-instruct"
+    model_map:
+      llama-70b: "@cf/meta/llama-3.1-70b-instruct"
+      llama-8b: "@cf/meta/llama-3.1-8b-instruct"
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    metadata:
+      account_id: "${CLOUDFLARE_ACCOUNT_ID}"
+    tags: [cloudflare, edge]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 15. Hugging Face Inference  (Serverless)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: huggingface
+    enabled: true
+    provider_type: huggingface
+    base_url: https://api-inference.huggingface.co
+    api_key: "${HF_API_KEY}"
+    default_model: meta-llama/Llama-3.1-70B-Instruct
+    model_map:
+      llama-70b: meta-llama/Llama-3.1-70B-Instruct
+      llama-8b: meta-llama/Llama-3.1-8B-Instruct
+    priority: 4
+    timeout_seconds: 120
+    retry_policy: { max_retries: 3, backoff_base: 2.0, backoff_max: 30.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    metadata:
+      use_chat_endpoint: false      # set true to use /v1/chat/completions on HF
+    tags: [huggingface, open-source]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 16. Replicate  (native Predictions API)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: replicate
+    enabled: true
+    provider_type: replicate
+    base_url: https://api.replicate.com
+    api_key: "${REPLICATE_API_TOKEN}"
+    default_model: meta/meta-llama-3-70b-instruct
+    model_map:
+      llama-70b: meta/meta-llama-3-70b-instruct
+      llama-8b: meta/meta-llama-3-8b-instruct
+      sdxl: stability-ai/sdxl
+    priority: 4
+    timeout_seconds: 120
+    retry_policy: { max_retries: 2, backoff_base: 2.0, backoff_max: 20.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    metadata:
+      poll_interval: 1.0        # seconds between status polls
+      max_poll_attempts: 120    # max polls (~2 min)
+    tags: [replicate, open-source]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 17. Venice AI  (OpenAI-compatible — 10 text prompts/day free)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: venice
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.venice.ai/api/v1
+    api_key: "${VENICE_API_KEY}"
+    default_model: llama-3.3-70b
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 120, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 600 }
+    quota:
+      token_limit: 100000000     # no known token cap — RPD is the constraint
+      period_type: day
+      period_value: 1
+      reset_mode: fixed
+      request_limit: 10          # 10 text prompts/day free
+    tags: [venice, privacy, free-tier]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 18. xAI / Grok  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: xai-grok
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.x.ai/v1
+    api_key: "${XAI_API_KEY}"
+    default_model: grok-2-latest
+    model_map:
+      grok-2: grok-2-latest
+      grok-beta: grok-beta
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [xai, grok]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 17. GitHub Models  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: github-models
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://models.inference.ai.azure.com
+    api_key: "${GITHUB_TOKEN}"
+    default_model: gpt-4o-mini
+    model_map:
+      gpt-4o-mini: gpt-4o-mini
+      gpt-4o: gpt-4o
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [github, free-tier]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 18. Scaleway Generative APIs  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: scaleway
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.scaleway.ai/v1
+    api_key: "${SCALEWAY_API_KEY}"
+    default_model: llama-3.1-70b-instruct
+    model_map:
+      llama-70b: llama-3.1-70b-instruct
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [scaleway, european]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 19. OVHcloud AI Endpoints  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: ovhcloud
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://llama-3-1-70b-instruct.endpoints.kepler.ai.cloud.ovh.net/api/openai_compat/v1
+    api_key: "${OVHCLOUD_API_KEY}"
+    default_model: llama-3.1-70b-instruct
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [ovhcloud, european]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 20. AI21 Labs  ($10 trial credit, 3-month expiry — enable when needed)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: ai21
+    enabled: false               # paid-only after $10 trial credit expires
+    provider_type: openai_compatible
+    base_url: https://api.ai21.com/studio/v1
+    api_key: "${AI21_API_KEY}"
+    default_model: jamba-1.5-large
+    model_map:
+      jamba-large: jamba-1.5-large
+      jamba-mini: jamba-1.5-mini
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [ai21, jamba]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 21. Alibaba Cloud — DashScope / Model Studio  (OpenAI-compatible mode)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: alibaba-dashscope
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
+    api_key: "${DASHSCOPE_API_KEY}"
+    default_model: qwen-max
+    model_map:
+      qwen-max: qwen-max
+      qwen-plus: qwen-plus
+      qwen-turbo: qwen-turbo
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 500000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [alibaba, qwen, dashscope]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 22. Nebius AI Studio  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: nebius
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.studio.nebius.ai/v1
+    api_key: "${NEBIUS_API_KEY}"
+    default_model: meta-llama/Llama-3.1-70B-Instruct
+    model_map:
+      llama-70b: meta-llama/Llama-3.1-70B-Instruct
+    priority: 4
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [nebius]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 23. Novita AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: novita
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.novita.ai/v3/openai
+    api_key: "${NOVITA_API_KEY}"
+    default_model: meta-llama/llama-3.1-70b-instruct
+    model_map:
+      llama-70b: meta-llama/llama-3.1-70b-instruct
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [novita]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 24. Hyperbolic  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: hyperbolic
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.hyperbolic.xyz/v1
+    api_key: "${HYPERBOLIC_API_KEY}"
+    default_model: meta-llama/Llama-3.1-70B-Instruct
+    model_map:
+      llama-70b: meta-llama/Llama-3.1-70B-Instruct
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [hyperbolic]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 25. Inference.net  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: inference-net
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.inference.net/v1
+    api_key: "${INFERENCE_NET_API_KEY}"
+    default_model: meta-llama/llama-3.1-70b-instruct
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [inference-net]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 26. Chutes AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: chutes
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.chutes.ai/v1
+    api_key: "${CHUTES_API_KEY}"
+    default_model: deepseek-ai/DeepSeek-V3-0324
+    model_map:
+      deepseek-v3: deepseek-ai/DeepSeek-V3-0324
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [chutes]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 27. Targon / Manifold Labs  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: targon
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.targon.com/v1
+    api_key: "${TARGON_API_KEY}"
+    default_model: deepseek-ai/DeepSeek-V3
+    model_map:
+      deepseek-v3: deepseek-ai/DeepSeek-V3
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [targon, decentralised]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 28. Kluster AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: kluster
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.kluster.ai/v1
+    api_key: "${KLUSTER_API_KEY}"
+    default_model: klusterai/Meta-Llama-3.1-405B-Instruct-Turbo
+    model_map:
+      llama-405b: klusterai/Meta-Llama-3.1-405B-Instruct-Turbo
+    priority: 5
+    timeout_seconds: 120
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [kluster, batch]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 29. Crusoe AI  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: crusoe
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://inference.crusoecloud.com/v1
+    api_key: "${CRUSOE_API_KEY}"
+    default_model: meta-llama/Llama-3.3-70B-Instruct
+    model_map:
+      llama-70b: meta-llama/Llama-3.3-70B-Instruct
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [crusoe]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 30. NLP Cloud  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: nlpcloud
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.nlpcloud.io/v1/gpu
+    api_key: "${NLPCLOUD_API_KEY}"
+    default_model: chatdolphin
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [nlpcloud]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 31. Upstage  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: upstage
+    enabled: true
+    provider_type: openai_compatible
+    base_url: https://api.upstage.ai/v1/solar
+    api_key: "${UPSTAGE_API_KEY}"
+    default_model: solar-pro
+    model_map:
+      solar-pro: solar-pro
+      solar-mini: solar-mini
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [upstage, solar]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 32. Baseten  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: baseten
+    enabled: false
+    provider_type: openai_compatible
+    base_url: https://bridge.baseten.co/v1/direct
+    api_key: "${BASETEN_API_KEY}"
+    default_model: meta-llama/Llama-3.1-70B-Instruct
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [baseten, self-hosted]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 33. Modal  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: modal
+    enabled: false
+    provider_type: openai_compatible
+    base_url: "${MODAL_ENDPOINT_URL}"   # Modal gives you a custom endpoint URL
+    api_key: "${MODAL_API_KEY}"
+    default_model: default
+    priority: 5
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [modal, self-hosted]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 34. Vercel AI Gateway  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: vercel-ai
+    enabled: false
+    provider_type: openai_compatible
+    base_url: https://gateway.vercel.ai/v1
+    api_key: "${VERCEL_AI_KEY}"
+    default_model: gpt-4o-mini
+    priority: 3
+    timeout_seconds: 60
+    retry_policy: { max_retries: 2, backoff_base: 1.0, backoff_max: 10.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 60, failure_threshold: 3, quota_exhaustion_cooldown_seconds: 300 }
+    quota: { token_limit: 300000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [vercel, gateway]
+    failover_enabled: true
+
+  # ═══════════════════════════════════════════════════════════════════════════
+  # 35. Local vLLM / Ollama / LM Studio  (OpenAI-compatible)
+  # ═══════════════════════════════════════════════════════════════════════════
+  - name: local-vllm
+    enabled: false
+    provider_type: openai_compatible
+    base_url: http://localhost:8000/v1
+    api_key: ""
+    default_model: meta-llama/Llama-3-8b-instruct
+    priority: 0     # highest priority when enabled
+    timeout_seconds: 30
+    retry_policy: { max_retries: 1, backoff_base: 0.5, backoff_max: 5.0, retry_on_transient: true }
+    cooldown_policy: { cooldown_seconds: 30, failure_threshold: 2, quota_exhaustion_cooldown_seconds: 60 }
+    quota: { token_limit: 10000000, period_type: day, period_value: 1, reset_mode: fixed }
+    tags: [local, self-hosted]
+    failover_enabled: true
+    continue_on_auth_error: true
